@@ -35,6 +35,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/select.h>
+#include <stdlib.h>
 
 #ifdef __CYGWIN__
 #include "net/wpcap-drv.h"
@@ -174,6 +175,16 @@ main(int argc, char **argv)
   /* crappy way of remembering and accessing argc/v */
   contiki_argc = argc;
   contiki_argv = argv;
+
+  srand(time(NULL));
+  int k;
+
+
+  for (k  = 0; k < sizeof(serial_id); k++) {
+  	serial_id[k] = rand() % 0xff;
+  }
+
+
 
   /* native under windows is hardcoded to use the first one or two args */
   /* for wpcap configuration so this needs to be "removed" from         */

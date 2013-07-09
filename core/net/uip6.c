@@ -83,7 +83,7 @@
 /* For Debug, logging, statistics                                            */
 /*---------------------------------------------------------------------------*/
 
-#define DEBUG DEBUG_NONE
+#define DEBUG DEBUG_FULL
 #include "net/uip-debug.h"
 
 #if UIP_CONF_IPV6_RPL
@@ -2291,6 +2291,7 @@ uip_process(uint8_t flag)
   return;
 
  drop:
+  PRINTF("uip6.c:uip_process : drop \n");
   uip_len = 0;
   uip_ext_len = 0;
   uip_ext_bitmap = 0;

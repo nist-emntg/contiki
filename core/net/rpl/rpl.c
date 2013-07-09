@@ -45,7 +45,7 @@
 #include "net/uip-ds6.h"
 #include "net/rpl/rpl-private.h"
 
-#define DEBUG DEBUG_NONE
+#define DEBUG DEBUG_FULL
 #include "net/uip-debug.h"
 
 #include <limits.h>
