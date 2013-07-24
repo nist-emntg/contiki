@@ -25,15 +25,17 @@
  * - Tony Cheneau <tony.cheneau@nist.gov>
  */
 
-#include <stdio.h>
-#include <string.h>
-#include <semaphore.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <stdlib.h>
-#include <pthread.h>
 #include <arpa/inet.h>
+#include <getopt.h>
+#include <netinet/in.h>
+#include <pthread.h>
+#include <semaphore.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
 #include <time.h>
+
 
 #include "contiki.h"
 #include "radio.h"
@@ -65,6 +67,21 @@ static const void *pending_data;
 int sockfd;
 struct sockaddr_in servaddr, cliaddr;
 
+/* simulation related data */
+static uint16_t identifier = 0; /* the node's identifier in the simulation */
+static uint16_t mport = 0, emuport = 0;
+static char *maddr = NULL, *emuaddr = NULL;
+
+/* for parsing command line argument */
+const struct option longopt [] = {
+	{ "identifier", required_argument, NULL, 'i' },
+	{ "maddr", required_argument, NULL, 'm' },
+	{ "mport", required_argument, NULL, 'l' },
+	{ "emuaddr", required_argument, NULL, 'e' },
+	{ "emuport", required_argument, NULL, 'p' },
+	{ "help", no_argument, NULL, 'h'},
+	{ NULL, 0, NULL, 0},
+};
 extern char** contiki_argv;
 extern int contiki_argc;
 
@@ -164,31 +181,90 @@ void radio_set_txpower(unsigned char power) {
 PRINTF("radio_set_txpower %d\n", power);
 simPower = power;
 }
+/*--------------------------------------------------------------------*/
+static void parse_command_line(void) {
+	int c, opt_idx = 0;
+	while((c = getopt_long(contiki_argc,
+						   contiki_argv,
+						   "i:m:l:e:p:h",
+						   longopt,
+						   &opt_idx)) != -1) {
+		switch (c) {
+		case 'i': /* --identifier */
+			identifier = atoi(optarg);
+			break;
+		case 'm': /* --maddr */
+			maddr = optarg;
+			break;
+		case 'l': /* --mport */
+			mport = atoi(optarg);
+			break;
+		case 'e': /* --emuaddr */
+			emuaddr = optarg;
+			break;
+		case 'p': /* --emuport */
+			emuport = atoi(optarg);
+			break;
+		case 'h':
+		default:
+		/* print usage */
+fprintf(stderr, "usage: %s -i ID -m MADDR -l MPORT -e DADDR -p DPORT\n", contiki_argv[0]);
+fprintf(stderr, "-h,--help          this help message\n");
+fprintf(stderr, "-i,--identifier    node's identifier for the simulation\n");
+fprintf(stderr, "-m,--maddr         multicast address to listen on\n");
+fprintf(stderr, "-l,--mport         multicast port to listen on\n");
+fprintf(stderr, "-e,--emuaddr       address of the PHY emulator (wiredto154)\n");
+fprintf(stderr, "-p,--emuport       PHY emulator (wiredto154) port to connect to\n");
+			exit(EXIT_FAILURE);
+		}
+
+	}
+
+	if (optind < contiki_argc) {
+		fprintf(stderr, "some arguments are not recognized, "
+				"use --help for the list of valid arguements\n");
+		exit(EXIT_FAILURE);
+	}
+
+	if (! identifier) {
+		fprintf(stderr, "--identifier argument is mandatory\n");
+		exit(EXIT_FAILURE);
+	}
+	if (! maddr) {
+		fprintf(stderr, "--maddr argument is mandatory\n");
+		exit(EXIT_FAILURE);
+	}
+	if (! mport) {
+		fprintf(stderr, "--mport argument is mandatory\n");
+		exit(EXIT_FAILURE);
+	}
+	if (! emuaddr) {
+		fprintf(stderr, "--emuaddr argument is mandatory\n");
+		exit(EXIT_FAILURE);
+	}
+	if (! emuport) {
+		fprintf(stderr, "--emuport argument is mandatory\n");
+		exit(EXIT_FAILURE);
+	}
+}
 
 /*--------------------------------------------------------------------*/
 static int init(void) {
+	pthread_t data;
+	/* set up the udp server */
+	PRINTF("Initializing udpradio\n");
+	bzero(&servaddr, sizeof(servaddr));
+	sem_init(&mysem, 0, 1);
 
+	servaddr.sin_family = AF_INET;
+	servaddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+	servaddr.sin_port = htons(32000); // default emulator port.
 
+	parse_command_line();
 
-pthread_t data;
-/* set up the udp server */
-PRINTF("Initializing udpradio\n");
-bzero(&servaddr, sizeof(servaddr));
-sem_init(&mysem, 0, 1);
-servaddr.sin_family = AF_INET;
-servaddr.sin_addr.s_addr = inet_addr("127.0.0.1");
-servaddr.sin_port = htons(32000); // default emulator port.
+	servaddr.sin_addr.s_addr = inet_addr(emuaddr);
+	servaddr.sin_port = htons(emuport);
 
-int i;
-for (i = 0; i < contiki_argc; i++) {
-	if (strcmp(contiki_argv[i], "--srvaddr") == 0) {
-		servaddr.sin_addr.s_addr = inet_addr(contiki_argv[i + 1]);
-		i++;
-	} else if (strcmp(contiki_argv[i], "--srvport") == 0) {
-		servaddr.sin_port = htons(atoi(contiki_argv[i + 1]));
-		i++;
-	}
-}
 int rc = pthread_create(&data, (void *) NULL, radio_thread, (void *) NULL);
 
 if (rc < 0) {
