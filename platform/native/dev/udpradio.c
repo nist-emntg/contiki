@@ -250,7 +250,7 @@ fprintf(stderr, "-p,--emuport       PHY emulator (wiredto154) port to connect to
 
 /*--------------------------------------------------------------------*/
 static int init(void) {
-	pthread_t data;
+	pthread_t reader;
 	/* set up the udp server */
 	PRINTF("Initializing udpradio\n");
 	bzero(&servaddr, sizeof(servaddr));
@@ -265,16 +265,16 @@ static int init(void) {
 	servaddr.sin_addr.s_addr = inet_addr(emuaddr);
 	servaddr.sin_port = htons(emuport);
 
-int rc = pthread_create(&data, (void *) NULL, radio_thread, (void *) NULL);
+	int rc = pthread_create(&reader, (void *) NULL, radio_thread, (void *) NULL);
 
-if (rc < 0) {
-	PRINTF("pthread_create failed %d\n", rc);
-	exit(0);
-}
-pthread_detach(data);
-process_start(&udpradio, NULL);
+	if (rc < 0) {
+		fprintf(stderr, "pthread_create() failed: %d\n", rc);
+		exit(EXIT_FAILURE);
+	}
+	pthread_detach(reader);
+	process_start(&udpradio, NULL);
 
-return 1;
+	return 1;
 }
 /*---------------------------------------------------------------------------*/
 static int prepare_packet(const void *data, unsigned short len) {
