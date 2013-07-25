@@ -34,6 +34,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <time.h>
 
 
@@ -43,10 +44,15 @@
 #include "net/rime/rimestats.h"
 #include "net/netstack.h"
 #include "net/uip.h"
+#include "udp-client-setup.h"
 
+/* TODO: revisit max stuffed-packet size */
+/* size of header + timestamp + maxpacket */
+#define MAX_PACKET_SIZE (1 + sizeof(struct timeval) + 127)
 
 #define UDP_RADIO_BUFSIZE  128
 #define MAX_QUEUE_LENGTH 32
+#define SIM_HEADER_LENGTH 1
 #define CRC_LENGTH 2
 
 #ifndef PRINTF
@@ -64,13 +70,16 @@ int simRadioChannel = 26;
 int queueLength = 0;
 sem_t mysem;
 static const void *pending_data;
-int sockfd;
-struct sockaddr_in servaddr, cliaddr;
+static int sockfd = 0;
+struct sockaddr_in cliaddr;
+static struct sockaddr emuaddr;
+static socklen_t emuaddr_len;
+
 
 /* simulation related data */
 static uint16_t identifier = 0; /* the node's identifier in the simulation */
-static uint16_t mport = 0, emuport = 0;
-static char *maddr = NULL, *emuaddr = NULL;
+static char *mcast_addr = NULL, *emuaddrstr = NULL;
+static char *mport = NULL, *emuport = NULL;
 
 /* for parsing command line argument */
 const struct option longopt [] = {
@@ -125,27 +134,11 @@ PROCESS_END();
 void* radio_thread(void *args) {
 struct sockaddr_in src_addr;
 int src_addr_length;
-sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-cliaddr.sin_family = AF_INET;
-cliaddr.sin_addr.s_addr = inet_addr("127.0.0.1");
-cliaddr.sin_port = htons(33000);
 
 char simInDataBuffer[UDP_RADIO_BUFSIZE];
-int i;
-int rc;
-for (i = 0; i < 100; i++) {
-	if ((rc = bind(sockfd, (const struct sockaddr *) &cliaddr, sizeof(cliaddr)))
-			== -1) {
-		cliaddr.sin_port++;
-	} else {
-		break;
-	}
-}
-if (rc == -1) {
-	PRINTF(" not bind client address \n");
-	exit(-1);
-}
-PRINTF("Starting radio_thread client port = %d\n", cliaddr.sin_port);
+
+PRINTF("Starting radio_thread\n");
+/* TODO print out the multicast listening port */
 while (1) {
 	PRINTF("Waiting for something \n");
 	int nbytes = recvfrom(sockfd, simInDataBuffer, 10000, 0, &src_addr,
@@ -194,16 +187,16 @@ static void parse_command_line(void) {
 			identifier = atoi(optarg);
 			break;
 		case 'm': /* --maddr */
-			maddr = optarg;
+			mcast_addr = optarg;
 			break;
 		case 'l': /* --mport */
-			mport = atoi(optarg);
+			mport = optarg;
 			break;
 		case 'e': /* --emuaddr */
-			emuaddr = optarg;
+			emuaddrstr = optarg;
 			break;
 		case 'p': /* --emuport */
-			emuport = atoi(optarg);
+			emuport = optarg;
 			break;
 		case 'h':
 		default:
@@ -230,7 +223,7 @@ fprintf(stderr, "-p,--emuport       PHY emulator (wiredto154) port to connect to
 		fprintf(stderr, "--identifier argument is mandatory\n");
 		exit(EXIT_FAILURE);
 	}
-	if (! maddr) {
+	if (! mcast_addr) {
 		fprintf(stderr, "--maddr argument is mandatory\n");
 		exit(EXIT_FAILURE);
 	}
@@ -238,7 +231,7 @@ fprintf(stderr, "-p,--emuport       PHY emulator (wiredto154) port to connect to
 		fprintf(stderr, "--mport argument is mandatory\n");
 		exit(EXIT_FAILURE);
 	}
-	if (! emuaddr) {
+	if (! emuaddrstr) {
 		fprintf(stderr, "--emuaddr argument is mandatory\n");
 		exit(EXIT_FAILURE);
 	}
@@ -253,17 +246,24 @@ static int init(void) {
 	pthread_t reader;
 	/* set up the udp server */
 	PRINTF("Initializing udpradio\n");
-	bzero(&servaddr, sizeof(servaddr));
+	memset(&emuaddr, 0, sizeof(emuaddr));
 	sem_init(&mysem, 0, 1);
-
-	servaddr.sin_family = AF_INET;
-	servaddr.sin_addr.s_addr = inet_addr("127.0.0.1");
-	servaddr.sin_port = htons(32000); // default emulator port.
 
 	parse_command_line();
 
-	servaddr.sin_addr.s_addr = inet_addr(emuaddr);
-	servaddr.sin_port = htons(emuport);
+	sockfd = udp_client_setup(&emuaddr, &emuaddr_len, emuaddrstr, mport, emuport);
+	if (sockfd < 0) {
+		perror("udp_client_setup()");
+		exit(EXIT_FAILURE);
+	}
+
+	// ask to join the PHY emulator multicast group
+	// note that the PHY emulator address as to be of the same address familly
+	// as the multicast group (e.g. both must be of type AF_INET)
+	if (join_multicast_group(emuaddr.sa_family, mcast_addr, sockfd)) {
+		fprintf(stderr, "unable to join multicast group, exiting");
+		exit(EXIT_FAILURE);
+	}
 
 	int rc = pthread_create(&reader, (void *) NULL, radio_thread, (void *) NULL);
 
@@ -290,14 +290,17 @@ return 0;
 
 /*---------------------------------------------------------------------------*/
 static int radio_send(const void *payload, unsigned short payload_len) {
-PRINTF("udpradio:radio_send servaddr %s %d \n", inet_ntoa(servaddr.sin_addr),
-		ntohs(servaddr.sin_port));
-void* crcPayload = malloc(payload_len + CRC_LENGTH); // add CRC to end.
-
-memcpy(crcPayload, payload, payload_len); // copy the payload over
-sendto(sockfd, crcPayload, payload_len + CRC_LENGTH, 0,
-		(struct sockaddr *) &servaddr, sizeof(servaddr));
-return RADIO_TX_OK;
+	//TODO:
+	// - add some debug messages
+	// - compute the real CRC eventually
+	//PRINTF("udpradio:radio_send servaddr %s %d \n", inet_ntoa(servaddr.sin_addr),
+	//		ntohs(servaddr.sin_port));
+	char realpayload[MAX_PACKET_SIZE];
+	realpayload[0] = 0; /* tells the PHY emulator that this is an incoming packet */
+	memcpy(realpayload + 1, payload, payload_len); // copy the payload over
+	sendto(sockfd, realpayload, SIM_HEADER_LENGTH + payload_len + CRC_LENGTH, 0,
+		   &emuaddr, emuaddr_len);
+	return RADIO_TX_OK;
 }
 /*---------------------------------------------------------------------------*/
 static int radio_read(void *buf, unsigned short bufsize) {
