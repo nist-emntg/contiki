@@ -46,22 +46,21 @@
 #include "net/uip.h"
 #include "udp-client-setup.h"
 
-/* TODO: revisit max stuffed-packet size */
-/* size of header + timestamp + maxpacket */
-#define MAX_PACKET_SIZE (1 + sizeof(struct timeval) + 127)
-
-#define UDP_RADIO_BUFSIZE  128
-#define MAX_QUEUE_LENGTH 32
+#define IEEE154_MTU 127
 #define SIM_HEADER_LENGTH 1
 #define CRC_LENGTH 2
+/* size of simheader + timestamp + maxpacket */
+#define MAX_SENT_PACKET_SIZE (SIM_HEADER_LENGTH + sizeof(struct timeval) + 127)
+/* TODO: find what's the exact maximum received data unit for UDP */
+#define MAX_RECEIVED_PACKET_SIZE 65535
 
 #ifndef PRINTF
 #define PRINTF printf
 #endif
 
+#define char_to_int16(tab, x) ((tab[x] << 8) + tab[x+1])
+
 char simReceiving = 0;
-int simInSize = 0;
-int simOutSize = 0;
 char simRadioHWOn = 1;
 int simSignalStrength = -100;
 int simLastSignalStrength = -100;
@@ -71,7 +70,6 @@ int queueLength = 0;
 sem_t mysem;
 static const void *pending_data;
 static int sockfd = 0;
-struct sockaddr_in cliaddr;
 static struct sockaddr emuaddr;
 static socklen_t emuaddr_len;
 
@@ -94,14 +92,21 @@ const struct option longopt [] = {
 extern char** contiki_argv;
 extern int contiki_argc;
 
+enum frame_type { INBOUND_FRAME, SIM_STOP, /* from the clients */
+		  OUTBOUND_FRAME, SIM_END, /* from the server */
+		  MISC_DATA = 128 /* type for events registered by the simulation logger */ };
 
-struct Node {
-	char* data_packet;
-	int length;
-	struct Node *next;
+enum msg_type { SELF_PACKET, INCOMING_PACKET,
+		GARBAGE_PACKET, PACKET_NOT_FOR_ME,
+		UNKNOWN_PACKET = 253, MALFORMED_PACKET = 254 };
+
+struct Packet {
+	char * data[IEEE154_MTU];
+	uint8_t size;
+	uint8_t inuse;
 };
-/* This will be the unchanging first node */
-static struct Node* recv_queue = NULL;
+
+struct Packet packet_buf;
 
 PROCESS(udpradio, "udpradio process");
 static int radio_read(void *buf, unsigned short bufsize);
@@ -130,35 +135,136 @@ PROCESS_THREAD(udpradio, ev, data) {
 PROCESS_END();
 
 }
+/*----------------------------------------------------------------------------*/
+int check_and_parse(char * packet, int size, int * offset, int * packet_size) {
+	char * p = packet;
+	* offset = 2;
+	if (size == 0)
+		return MALFORMED_PACKET;
 
+	if (p[0] == SIM_END) {
+		fprintf(stderr, "simulation is ending\n");
+		/* TODO: call some code to save simulation data */
+		exit(EXIT_SUCCESS);
+	}
+
+	/* parse the packet header */
+	if (p[0] == OUTBOUND_FRAME) {
+		uint16_t sender_id;
+		uint16_t num_good, num_bad;
+		++p;
+		/* the first field is the sender ID */
+		/* TODO: check that the packet looped back in a timely maner */
+		sender_id = char_to_int16(p, 0);
+		p+=2;
+		PRINTF("Received a packet from %d\n", sender_id);
+		if (sender_id == identifier) {
+			num_good = char_to_int16(p, 0);
+			p += 2;
+			/* the second field is the size of the list of nodes
+			 * that will receive the packet */
+			p += num_good * (sizeof(uint16_t) / sizeof(*p));
+			num_bad = char_to_int16(p, 0);
+			p += 2;
+			/* the fourth field is the size of the list of nodes
+			 * that will receive some garbage */
+			p += num_bad * (sizeof(uint16_t) / sizeof(*p));
+			/* at this stage p points on the timestamp structure */
+			* offset = p - packet;
+			* packet_size = size - (* offset);
+			return SELF_PACKET;
+		} else {
+			int good = 0, garbage = 0, i;
+			/* the second field is the size of the list of nodes
+			 * that will receive the packet */
+			num_good = char_to_int16(p, 0);
+			p += 2;
+
+			if (num_good * sizeof(uint16_t) > size - (p - packet))
+				return MALFORMED_PACKET;
+
+			/* the third field is the list of these nodes */
+			for(i=0; i < num_good; ++i) {
+				if (identifier == char_to_int16(p, 0))
+					good = 1;
+				p += sizeof(uint16_t);
+			}
+
+			/* the fourth field is the size of the list of nodes
+			 * that will receive some garbage */
+			num_bad = char_to_int16(p, 0);
+			p += 2;
+			if (num_bad * sizeof(uint16_t) > size - (p - packet))
+				return MALFORMED_PACKET;
+
+			/* the fifth field is the list of these nodes */
+			for(i=0; i < num_bad; ++i) {
+				if (identifier == char_to_int16(p, 0))
+					garbage = 1;
+				p += sizeof(uint16_t);
+			}
+
+			* offset = p - packet;
+			* packet_size = size - (* offset);
+
+			/* the timestamp field let us know how long we should
+			 * wait until the packet should actually be delivered */
+			if (good && garbage)
+				return MALFORMED_PACKET;
+			else if (good)
+				return INCOMING_PACKET;
+			else if (garbage)
+				return GARBAGE_PACKET;
+			else
+				return PACKET_NOT_FOR_ME;
+		}
+	} else
+		return UNKNOWN_PACKET;
+}
+/*----------------------------------------------------------------------------*/
 void* radio_thread(void *args) {
 struct sockaddr_in src_addr;
 int src_addr_length;
+int type, packet_offset, packet_size;
 
-char simInDataBuffer[UDP_RADIO_BUFSIZE];
+char simInDataBuffer[MAX_RECEIVED_PACKET_SIZE];
 
 PRINTF("Starting radio_thread\n");
 /* TODO print out the multicast listening port */
 while (1) {
-	PRINTF("Waiting for something \n");
-	int nbytes = recvfrom(sockfd, simInDataBuffer, 10000, 0, &src_addr,
-			&src_addr_length);
-	PRINTF("Got something. nbytes = %d queueLength = %d \n", nbytes,
-			queueLength);
-	sem_wait(&mysem);
-	if (queueLength < MAX_QUEUE_LENGTH) {
-		struct Node* pnode = (struct Node*) malloc(sizeof(struct Node));
-		char* buffer = malloc(nbytes);
-		memcpy(buffer, simInDataBuffer, nbytes);
-		pnode->data_packet = buffer;
-		pnode->length = nbytes - CRC_LENGTH;
-		pnode->next = recv_queue;
-		recv_queue = pnode;
-		queueLength++;
-		PRINTF("enqueued\n");
+	PRINTF("Listening for a new packet\n");
+	int nbytes = recvfrom(sockfd,
+						  simInDataBuffer,
+						  MAX_RECEIVED_PACKET_SIZE,
+						  0,
+						  &src_addr,
+						  &src_addr_length);
+	PRINTF("Received %d bytes of data from the PHY emulator\n", nbytes);
+
+	type = check_and_parse(simInDataBuffer, nbytes, &packet_offset, &packet_size);
+	switch (type) {
+	case SELF_PACKET:
+		PRINTF("received a self frame\n");
+		break;
+	case INCOMING_PACKET:
+		/* TODO: check CRC */
+		PRINTF("node successfully received a new data packet\n");
+		sem_wait(&mysem);
+		if(packet_buf.inuse) {
+			fprintf(stderr, "can't accept a new packet while the previous "
+					"one has not been processed\n");
+			exit(EXIT_FAILURE);
+		}
+		memcpy(packet_buf.data, simInDataBuffer + packet_offset, packet_size- CRC_LENGTH);
+		packet_buf.size = packet_size - CRC_LENGTH;
+		packet_buf.inuse = 1;
+		sem_post(&mysem);
 		process_poll(&udpradio);
+		break;
+	default:
+		PRINTF("unrecognized message type: %d\n", type);
 	}
-	sem_post(&mysem);
+
 }
 return (void *) NULL;
 }
@@ -246,8 +352,8 @@ static int init(void) {
 	pthread_t reader;
 	/* set up the udp server */
 	PRINTF("Initializing udpradio\n");
-	memset(&emuaddr, 0, sizeof(emuaddr));
 	sem_init(&mysem, 0, 1);
+	memset(&packet_buf, 0, sizeof(packet_buf));
 
 	parse_command_line();
 
@@ -295,38 +401,24 @@ static int radio_send(const void *payload, unsigned short payload_len) {
 	// - compute the real CRC eventually
 	//PRINTF("udpradio:radio_send servaddr %s %d \n", inet_ntoa(servaddr.sin_addr),
 	//		ntohs(servaddr.sin_port));
-	char realpayload[MAX_PACKET_SIZE];
+	char realpayload[MAX_SENT_PACKET_SIZE];
 	realpayload[0] = 0; /* tells the PHY emulator that this is an incoming packet */
 	memcpy(realpayload + 1, payload, payload_len); // copy the payload over
 	sendto(sockfd, realpayload, SIM_HEADER_LENGTH + payload_len + CRC_LENGTH, 0,
 		   &emuaddr, emuaddr_len);
+	pending_data = NULL;
 	return RADIO_TX_OK;
 }
 /*---------------------------------------------------------------------------*/
 static int radio_read(void *buf, unsigned short bufsize) {
-PRINTF("udpradio:radio_read %d\n", bufsize);
-if (recv_queue == NULL) {
-	return 0;
-}
-// get the last packet from the queue;
-sem_wait(&mysem);
-struct Node* prev = recv_queue;
-struct Node* pnode = recv_queue;
-for (; pnode != NULL; prev = pnode, pnode = pnode->next) {
-
-}
-if (prev == recv_queue) {
-	recv_queue = NULL;
-} else {
-	prev->next = NULL;
-}
-int length = bufsize < prev->length ? bufsize : prev->length;
-memcpy(buf, prev->data_packet, length);
-free(prev->data_packet);
-free(prev);
-queueLength--;
-sem_post(&mysem);
-return length;
+	int length = 0;
+	PRINTF("udpradio:radio_read (%d on max. %d)\n", packet_buf.size, bufsize);
+	sem_wait(&mysem);
+	length = bufsize < packet_buf.size ? bufsize : packet_buf.size;
+	memcpy(buf, packet_buf.data, length);
+	memset(&packet_buf, 0, sizeof(packet_buf));
+	sem_post(&mysem);
+	return length;
 }
 /*---------------------------------------------------------------------------*/
 static int transmit_packet(unsigned short len) {
