@@ -184,6 +184,7 @@ main(int argc, char **argv)
 #endif
 #endif
 
+
   process_init();
   process_start(&etimer_process, NULL);
   ctimer_init();
@@ -221,9 +222,9 @@ main(int argc, char **argv)
 #endif
 
   serial_line_init();
-  
+
   autostart_start(autostart_processes);
-  
+
   /* Make standard output unbuffered. */
   setvbuf(stdout, (char *)NULL, _IONBF, 0);
 
@@ -278,5 +279,10 @@ void
 uip_log(char *m)
 {
   printf("%s\n", m);
+}
+/*---------------------------------------------------------------------------*/
+rimeaddr_t*
+getNodeId() {
+	return &rimeaddr_node_addr;
 }
 /*---------------------------------------------------------------------------*/

@@ -241,5 +241,9 @@ int rpl_update_header_final(uip_ipaddr_t *addr);
 int rpl_verify_header(int);
 void rpl_remove_header(void);
 uint8_t rpl_invert_header(void);
+int rpl_get_parent_count(rpl_dag_t* pdag);
 /*---------------------------------------------------------------------------*/
+
+extern int contiki_argc;
+extern char **contiki_argv;
 #endif /* RPL_H */

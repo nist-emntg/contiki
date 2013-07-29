@@ -68,8 +68,9 @@
 #include "net/sicslowpan.h"
 #include "net/neighbor-info.h"
 #include "net/netstack.h"
+#include "akm-mac.h"
 
-#define DEBUG 0
+#define DEBUG 1
 #if DEBUG
 /* PRINTFI and PRINTFO are defined for input and output to debug one without changing the timing of the other */
 uint8_t p;
@@ -1622,6 +1623,7 @@ input(void)
         last_fragment = 1;
       }
       break;
+
     default:
       break;
   }
@@ -1687,6 +1689,7 @@ input(void)
       rime_hdr_len += UIP_IPH_LEN;
       uncomp_hdr_len += UIP_IPH_LEN;
       break;
+
     default:
       /* unknown header */
       PRINTFI("sicslowpan input: unknown dispatch: %u\n",

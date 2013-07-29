@@ -44,11 +44,12 @@
 #include "lib/random.h"
 #include "sys/ctimer.h"
 
-#define DEBUG DEBUG_NONE
+#define DEBUG DEBUG_PRINT
 #include "net/uip-debug.h"
 
 /************************************************************************/
 static struct ctimer periodic_timer;
+
 
 static void handle_periodic_timer(void *ptr);
 static void new_dio_interval(rpl_instance_t *instance);
@@ -58,6 +59,8 @@ static uint16_t next_dis;
 
 /* dio_send_ok is true if the node is ready to send DIOs */
 static uint8_t dio_send_ok;
+
+
 
 /************************************************************************/
 static void
@@ -137,7 +140,7 @@ handle_dio_timer(void *ptr)
     } else {
       PRINTF("RPL: Postponing DIO transmission since link local address is not ok\n");
       ctimer_set(&instance->dio_timer, CLOCK_SECOND, &handle_dio_timer, instance);
-      return;
+      return; ctimer_set(&periodic_timer, CLOCK_SECOND, handle_periodic_timer, NULL);
     }
   }
 
@@ -214,6 +217,7 @@ handle_dao_timer(void *ptr)
   }
   ctimer_stop(&instance->dao_timer);
 }
+
 /************************************************************************/
 void
 rpl_schedule_dao(rpl_instance_t *instance)

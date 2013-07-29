@@ -1,0 +1,90 @@
+/*
+ * akm-beacon.c
+ *
+ *  Created on: Jul 24, 2013
+ *      Author: local
+ */
+
+#include <stdio.h>
+#include "random.h"
+#include "contiki.h"
+#include "net/mac/nullmac.h"
+#include "net/packetbuf.h"
+#include "net/netstack.h"
+#include  "mac/akm-mac.h"
+#include  "packetbuf.h"
+#include "clock.h"
+
+/*---------------------------------------------------------------------------*/
+void send_beacon() {
+	AKM_MAC_OUTPUT.data.beacon.is_authenticated = AKM_DATA.is_authenticated;
+	akm_send(ALL_NEIGHBORS, BEACON,
+			sizeof(AKM_MAC_OUTPUT.mac_header)
+					+ sizeof(AKM_MAC_OUTPUT.data.beacon));
+}
+
+void handle_beacon(nodeid_t *senderId, beacon_t *pbeacon) {
+	AKM_PRINTF("akm_mac:handle_beacon");
+	if (AKM_DATA.is_dodag_root) {
+		if (!is_neighbor_authenticated(senderId)) {
+			send_challenge(senderId);
+		}
+	} else {
+		int i;
+		bool_t transientState = False;
+		for (i = 0; i < NELEMS(AKM_DATA.authenticated_neighbors); i++) {
+			if (AKM_DATA.authenticated_neighbors[i].state != AUTHENTICATED &&
+					AKM_DATA.authenticated_neighbors[i].state != UNAUTHENTICATED) {
+				transientState = True;
+			}
+		}
+
+		if (is_part_of_dodag() && !transientState) {
+			if (get_authentication_state(senderId) == UNAUTHENTICATED &&
+					!pbeacon->is_authenticated){
+				send_challenge(senderId);
+			}
+		}
+	}
+
+}
+/*-----------------------------------------------------------------------*/
+static void handle_beacon_timer(void* ptr) {
+	AKM_PRINTF("handle_beacon_timer %d \n", isAuthenticated());
+	clock_time_t time;
+	/* Schedule a  beacon message */
+	if (!isAuthenticated()) {
+		time = BEACON_TIMER_INTERVAL * CLOCK_SECOND;
+	} else {
+		time = BEACON_TIMER_AUTH_INTERVAL * CLOCK_SECOND;
+	}
+	ctimer_set(&beacon_timer, time, handle_beacon_timer, NULL);
+	/* Send out the beacon message */
+	send_beacon();
+
+}
+
+/*--------------------------------------------------------------------------*/
+void reset_beacon( void ) {
+	ctimer_stop(&beacon_timer);
+	if ( is_capacity_available()) {
+		schedule_beacon();
+	}
+}
+
+/*---------------------------------------------------------------------------*/
+
+void schedule_beacon(void) {
+
+	AKM_PRINTF("akm_schedule_beacon\n");
+	clock_time_t time;
+	/* Schedule a  beacon message */
+	if (!isAuthenticated()) {
+		time = (BEACON_TIMER_INTERVAL * CLOCK_SECOND);
+	} else {
+		time = (BEACON_TIMER_AUTH_INTERVAL * CLOCK_SECOND);
+	}
+	send_beacon();
+	ctimer_set(&beacon_timer, time, handle_beacon_timer, NULL);
+}
+

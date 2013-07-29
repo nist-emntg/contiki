@@ -65,7 +65,7 @@ static uint8_t *packetbuf = (uint8_t *)packetbuf_aligned;
 
 static uint8_t *packetbufptr;
 
-#define DEBUG 0
+#define DEBUG 1
 #if DEBUG
 #include <stdio.h>
 #define PRINTF(...) printf(__VA_ARGS__)
@@ -176,6 +176,7 @@ packetbuf_hdralloc(int size)
     hdrptr -= size;
     return 1;
   }
+  PRINTF("packetbuf_totlen() + size %d \n" , packetbuf_totlen() + size);
   return 0;
 }
 /*---------------------------------------------------------------------------*/

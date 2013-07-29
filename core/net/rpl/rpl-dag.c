@@ -48,6 +48,7 @@
 #include "lib/list.h"
 #include "lib/memb.h"
 #include "sys/ctimer.h"
+#include "net/mac/akm-mac.h"
 
 #include <limits.h>
 #include <string.h>
@@ -115,6 +116,9 @@ remove_parents(rpl_dag_t *dag, rpl_rank_t minimum_rank)
     p2 = p->next;
     if(p->rank >= minimum_rank) {
       rpl_remove_parent(dag, p);
+      uip_ds6_nbr_t * nbr = uip_ds6_nbr_lookup(&p->addr);
+      free_security_association((nodeid_t*) &nbr->lladdr);
+
     }
   }
 }
@@ -267,6 +271,8 @@ rpl_set_root(uint8_t instance_id, uip_ipaddr_t *dag_id)
   ANNOTATE("#A root=%u\n", dag->dag_id.u8[sizeof(dag->dag_id) - 1]);
 
   rpl_reset_dio_timer(instance);
+  akm_set_dodag_root(dag);
+
 
   return dag;
 }
@@ -331,6 +337,7 @@ check_prefix(rpl_prefix_t *last_prefix, rpl_prefix_t *new_prefix)
     }
   }
 }
+
 /************************************************************************/
 int
 rpl_set_prefix(rpl_dag_t *dag, uip_ipaddr_t *prefix, unsigned len)
@@ -667,6 +674,28 @@ rpl_select_parent(rpl_dag_t *dag)
   }
 
   return best;
+}
+
+/************************************************************************/
+rpl_parent_t *
+rpl_select_redundant_parent(rpl_dag_t *dag)
+{
+  rpl_parent_t *p, *best;
+
+  best = rpl_select_parent(dag);
+
+
+  for(p = list_head(dag->parents); p != NULL; p = p->next) {
+    if(p->rank == INFINITE_RANK) {
+      /* ignore this neighbor */
+    }  else {
+      if (p != dag->instance->of->best_parent(best, p) ) {
+    	  return p;
+      }
+    }
+  }
+
+  return NULL;
 }
 /************************************************************************/
 void
@@ -1220,3 +1249,14 @@ rpl_process_dio(uip_ipaddr_t *from, rpl_dio_t *dio)
   p->dtsn = dio->dtsn;
 }
 /************************************************************************/
+
+int
+rpl_get_parent_count(rpl_dag_t *dag) {
+	rpl_parent_t *p;
+	int count = 0;
+
+	for(p = list_head(dag->parents); p != NULL; p = p->next) {
+		count++;
+	}
+	return count;
+}

@@ -58,6 +58,8 @@ rpl_stats_t rpl_stats;
 
 /************************************************************************/
 extern uip_ds6_route_t uip_ds6_routing_table[UIP_DS6_ROUTE_NB];
+
+
 /************************************************************************/
 void
 rpl_purge_routes(void)
@@ -203,6 +205,9 @@ rpl_ipv6_neighbor_callback(uip_ds6_nbr_t *nbr)
     }
   }
 }
+
+
+
 /************************************************************************/
 void
 rpl_init(void)
@@ -213,7 +218,6 @@ rpl_init(void)
 
   rpl_reset_periodic_timer();
   neighbor_info_subscribe(rpl_link_neighbor_callback);
-
   /* add rpl multicast address */
   uip_create_linklocal_rplnodes_mcast(&rplmaddr);
   uip_ds6_maddr_add(&rplmaddr);
