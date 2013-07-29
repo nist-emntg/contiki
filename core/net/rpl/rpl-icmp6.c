@@ -67,6 +67,7 @@
 #define UIP_IP_BUF       ((struct uip_ip_hdr *)&uip_buf[UIP_LLH_LEN])
 #define UIP_ICMP_BUF     ((struct uip_icmp_hdr *)&uip_buf[uip_l2_l3_hdr_len])
 #define UIP_ICMP_PAYLOAD ((unsigned char *)&uip_buf[uip_l2_l3_icmp_hdr_len])
+
 /*---------------------------------------------------------------------------*/
 static void dis_input(void);
 static void dio_input(void);
@@ -94,6 +95,8 @@ void RPL_DEBUG_DAO_OUTPUT(rpl_parent_t *);
 #endif
 
 extern rpl_of_t RPL_OF;
+
+
 
 /*---------------------------------------------------------------------------*/
 static int
@@ -733,6 +736,8 @@ dao_input(void)
     }
   }
 }
+
+
 /*---------------------------------------------------------------------------*/
 void
 dao_output(rpl_parent_t *parent, uint8_t lifetime)
@@ -876,7 +881,8 @@ dao_ack_output(rpl_instance_t *instance, uip_ipaddr_t *dest, uint8_t sequence)
 
   uip_icmp6_send(dest, ICMP6_RPL, RPL_CODE_DAO_ACK, 4);
 }
-/*---------------------------------------------------------------------------*/
+
+/*--------------------------------------------------------------------------*/
 void
 uip_rpl_input(void)
 {

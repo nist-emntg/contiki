@@ -179,6 +179,7 @@ PROCESS_THREAD(udp_client_process, ev, data)
 #endif
 
   etimer_set(&periodic, SEND_INTERVAL);
+  schedule_beacon();
   while(1) {
     PROCESS_YIELD();
     if(ev == tcpip_event) {

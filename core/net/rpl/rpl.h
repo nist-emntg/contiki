@@ -180,7 +180,7 @@ typedef struct rpl_instance rpl_instance_t;
  * update_metric_container(dag)
  *
  *  Updates the metric container for outgoing DIOs in a certain DAG.
- *  If the objective function of the DAG does not use metric containers, 
+ *  If the objective function of the DAG does not use metric containers,
  *  the function should set the object type to RPL_DAG_MC_NONE.
  */
 struct rpl_of {
@@ -247,5 +247,9 @@ uip_ipaddr_t *rpl_get_parent_ipaddr(rpl_parent_t *nbr);
 rpl_rank_t rpl_get_parent_rank(uip_lladdr_t *addr);
 uint16_t rpl_get_parent_link_metric(uip_lladdr_t *addr);
 void rpl_dag_init(void);
+int rpl_get_parent_count(rpl_dag_t* pdag);
 /*---------------------------------------------------------------------------*/
+
+extern int contiki_argc;
+extern char **contiki_argv;
 #endif /* RPL_H */

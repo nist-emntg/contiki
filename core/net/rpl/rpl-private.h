@@ -75,6 +75,7 @@
 #define RPL_CODE_SEC_DAO               0x82   /* Secure DAO */
 #define RPL_CODE_SEC_DAO_ACK           0x83   /* Secure DAO ACK */
 
+
 /* RPL control message options. */
 #define RPL_OPTION_PAD1                  0
 #define RPL_OPTION_PADN                  1
@@ -114,6 +115,8 @@
 
 #define RPL_LIFETIME(instance, lifetime) \
           ((unsigned long)(instance)->lifetime_unit * (lifetime))
+
+
 
 #ifndef RPL_CONF_MIN_HOPRANKINC
 #define RPL_MIN_HOPRANKINC          256
@@ -196,6 +199,8 @@
 #define RPL_DIS_INTERVAL                60
 #endif
 #define RPL_DIS_START_DELAY             5
+
+
 /*---------------------------------------------------------------------------*/
 /* Lollipop counters */
 
@@ -273,6 +278,8 @@ void dao_output(rpl_parent_t *, uint8_t lifetime);
 void dao_output_target(rpl_parent_t *, uip_ipaddr_t *, uint8_t lifetime);
 void dao_ack_output(rpl_instance_t *, uip_ipaddr_t *, uint8_t);
 
+void beacon_output();
+
 /* RPL logic functions. */
 void rpl_join_dag(uip_ipaddr_t *from, rpl_dio_t *dio);
 void rpl_join_instance(uip_ipaddr_t *from, rpl_dio_t *dio);
@@ -314,5 +321,7 @@ void rpl_reset_periodic_timer(void);
 
 /* Route poisoning. */
 void rpl_poison_routes(rpl_dag_t *, rpl_parent_t *);
+
+
 
 #endif /* RPL_PRIVATE_H */

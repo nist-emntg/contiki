@@ -49,6 +49,7 @@
 #include "lib/list.h"
 #include "lib/memb.h"
 #include "sys/ctimer.h"
+#include "net/mac/akm-mac.h"
 
 #include <limits.h>
 #include <string.h>
@@ -164,10 +165,20 @@ remove_parents(rpl_dag_t *dag, rpl_rank_t minimum_rank)
   PRINTF("RPL: Removing parents (minimum rank %u)\n",
 	minimum_rank);
 
+<<<<<<< HEAD
   p = nbr_table_head(rpl_parents);
   while(p != NULL) {
     if(dag == p->dag && p->rank >= minimum_rank) {
       rpl_remove_parent(p);
+=======
+  for(p = list_head(dag->parents); p != NULL; p = p2) {
+    p2 = p->next;
+    if(p->rank >= minimum_rank) {
+      rpl_remove_parent(dag, p);
+      uip_ds6_nbr_t * nbr = uip_ds6_nbr_lookup(&p->addr);
+      free_security_association((nodeid_t*) &nbr->lladdr);
+
+>>>>>>> Clean compile of MARTA on contiki.
     }
     p = nbr_table_next(rpl_parents, p);
   }
@@ -301,6 +312,8 @@ rpl_set_root(uint8_t instance_id, uip_ipaddr_t *dag_id)
   ANNOTATE("#A root=%u\n", dag->dag_id.u8[sizeof(dag->dag_id) - 1]);
 
   rpl_reset_dio_timer(instance);
+  akm_set_dodag_root(dag);
+
 
   return dag;
 }
@@ -356,7 +369,7 @@ check_prefix(rpl_prefix_t *last_prefix, rpl_prefix_t *new_prefix)
       uip_ds6_addr_rm(rep);
     }
   }
-  
+
   if(new_prefix != NULL) {
     set_ip_from_prefix(&ipaddr, new_prefix);
     if(uip_ds6_addr_lookup(&ipaddr) == NULL) {
@@ -367,13 +380,18 @@ check_prefix(rpl_prefix_t *last_prefix, rpl_prefix_t *new_prefix)
     }
   }
 }
+<<<<<<< HEAD
 /*---------------------------------------------------------------------------*/
+=======
+
+/************************************************************************/
+>>>>>>> Clean compile of MARTA on contiki.
 int
 rpl_set_prefix(rpl_dag_t *dag, uip_ipaddr_t *prefix, unsigned len)
 {
   rpl_prefix_t last_prefix;
   uint8_t last_len = dag->prefix_info.length;
-  
+
   if(len > 128) {
     return 0;
   }
@@ -390,7 +408,7 @@ rpl_set_prefix(rpl_dag_t *dag, uip_ipaddr_t *prefix, unsigned len)
   if(last_len == 0) {
     PRINTF("rpl_set_prefix - prefix NULL\n");
     check_prefix(NULL, &dag->prefix_info);
-  } else { 
+  } else {
     PRINTF("rpl_set_prefix - prefix NON-NULL\n");
     check_prefix(&last_prefix, &dag->prefix_info);
   }
@@ -715,6 +733,27 @@ rpl_select_parent(rpl_dag_t *dag)
   return best;
 }
 /*---------------------------------------------------------------------------*/
+rpl_parent_t *
+rpl_select_redundant_parent(rpl_dag_t *dag)
+{
+  rpl_parent_t *p, *best;
+
+  best = rpl_select_parent(dag);
+
+
+  for(p = list_head(dag->parents); p != NULL; p = p->next) {
+    if(p->rank == INFINITE_RANK) {
+      /* ignore this neighbor */
+    }  else {
+      if (p != dag->instance->of->best_parent(best, p) ) {
+    	  return p;
+      }
+    }
+  }
+
+  return NULL;
+}
+/*------------------------------------------------------------------------*/
 void
 rpl_remove_parent(rpl_parent_t *parent)
 {
@@ -1187,7 +1226,7 @@ rpl_process_dio(uip_ipaddr_t *from, rpl_dio_t *dio)
   } else if(dio->rank == INFINITE_RANK && dag->joined) {
     rpl_reset_dio_timer(instance);
   }
-  
+
   /* Prefix Information Option treated to add new prefix */
   if(dio->prefix_info.length != 0) {
     if(dio->prefix_info.flags & UIP_ND6_RA_FLAG_AUTONOMOUS) {
@@ -1270,6 +1309,17 @@ rpl_process_dio(uip_ipaddr_t *from, rpl_dio_t *dio)
     uip_ds6_defrt_add(from, RPL_LIFETIME(instance, instance->default_lifetime));
   }
   p->dtsn = dio->dtsn;
+}
+/*---------------------------------------------------------------------------*/
+int
+rpl_get_parent_count(rpl_dag_t *dag) {
+	rpl_parent_t *p;
+	int count = 0;
+
+	for(p = list_head(dag->parents); p != NULL; p = p->next) {
+		count++;
+	}
+	return count;
 }
 /*---------------------------------------------------------------------------*/
 #endif /* UIP_CONF_IPV6 */

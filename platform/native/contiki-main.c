@@ -187,6 +187,7 @@ main(int argc, char **argv)
 #endif
 #endif
 
+
   process_init();
   process_start(&etimer_process, NULL);
   ctimer_init();
@@ -291,5 +292,10 @@ void
 uip_log(char *m)
 {
   fprintf(stderr, "%s\n", m);
+}
+/*---------------------------------------------------------------------------*/
+rimeaddr_t*
+getNodeId() {
+	return &rimeaddr_node_addr;
 }
 /*---------------------------------------------------------------------------*/
