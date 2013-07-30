@@ -10,7 +10,7 @@ ifeq ($(UIP_CONF_IPV6),1)
 CFLAGS += -DWITH_UIP6=1
 endif
 
-CONTIKI_TARGET_DIRS = . dev ctk
+CONTIKI_TARGET_DIRS = . dev ctk thirdparty
 CONTIKI_TARGET_MAIN = ${addprefix $(OBJECTDIR)/,contiki-main.o}
 
 CONTIKI_TARGET_SOURCEFILES = contiki-main.c clock.c leds.c leds-arch.c \
