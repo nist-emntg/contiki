@@ -44,6 +44,7 @@
 #include "net/rime/rimestats.h"
 #include "net/netstack.h"
 #include "net/uip.h"
+#include "crc16.h"
 #include "udp-client-setup.h"
 
 #define IEEE154_MTU 127
@@ -394,14 +395,12 @@ return 0;
 
 /*---------------------------------------------------------------------------*/
 static int radio_send(const void *payload, unsigned short payload_len) {
-	//TODO:
-	// - add some debug messages
-	// - compute the real CRC eventually
-	//PRINTF("udpradio:radio_send servaddr %s %d \n", inet_ntoa(servaddr.sin_addr),
-	//		ntohs(servaddr.sin_port));
 	char realpayload[MAX_SENT_PACKET_SIZE];
+	uint16_t crc = crc16_data(payload, payload_len, 0);
 	realpayload[0] = 0; /* tells the PHY emulator that this is an incoming packet */
-	memcpy(realpayload + 1, payload, payload_len); // copy the payload over
+	memcpy(realpayload + SIM_HEADER_LENGTH, payload, payload_len); // copy the payload over
+	realpayload[SIM_HEADER_LENGTH + payload_len] = crc & 0xff;
+	realpayload[SIM_HEADER_LENGTH + payload_len + 1] = crc >> 8;
 	sendto(sockfd, realpayload, SIM_HEADER_LENGTH + payload_len + CRC_LENGTH, 0,
 		   &emuaddr, emuaddr_len);
 	pending_data = NULL;
