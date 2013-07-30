@@ -117,19 +117,19 @@ PROCESS_THREAD(udpradio, ev, data) {
 
 	PROCESS_BEGIN()
 	;
-	PRINTF("udpradio_process started\n");
+	PRINTF("udpradio: process() started\n");
 
 	while (1) {
 		PROCESS_YIELD_UNTIL(ev == PROCESS_EVENT_POLL);
-		PRINTF("Got an event %d\n", ev);
+		PRINTF("udpradio: got an event (type %d)\n", ev);
 		packetbuf_clear();
-		PRINTF("udpradio_process reading radio");
+		PRINTF("udpradio: reading radio\n");
 		int len = radio_read(packetbuf_dataptr(), PACKETBUF_SIZE);
 		if (len != 0) {
 			packetbuf_set_datalen(len);
 			NETSTACK_RDC.input();
 		} else {
-			PRINTF("Nothing to read \n");
+			PRINTF("udpradio: nothing to read\n");
 		}
 	}
 PROCESS_END();
@@ -143,7 +143,7 @@ int check_and_parse(char * packet, int size, int * offset, int * packet_size) {
 		return MALFORMED_PACKET;
 
 	if (p[0] == SIM_END) {
-		fprintf(stderr, "simulation is ending\n");
+		fprintf(stderr, "udpradio: simulation is ending\n");
 		/* TODO: call some code to save simulation data */
 		exit(EXIT_SUCCESS);
 	}
@@ -157,7 +157,6 @@ int check_and_parse(char * packet, int size, int * offset, int * packet_size) {
 		/* TODO: check that the packet looped back in a timely maner */
 		sender_id = char_to_int16(p, 0);
 		p+=2;
-		PRINTF("Received a packet from %d\n", sender_id);
 		if (sender_id == identifier) {
 			num_good = char_to_int16(p, 0);
 			p += 2;
@@ -229,10 +228,10 @@ int type, packet_offset, packet_size;
 
 char simInDataBuffer[MAX_RECEIVED_PACKET_SIZE];
 
-PRINTF("Starting radio_thread\n");
+PRINTF("udpradio: Starting radio_thread\n");
 /* TODO print out the multicast listening port */
 while (1) {
-	PRINTF("Listening for a new packet\n");
+	PRINTF("udpradio: Listening for a new packet\n");
 	int nbytes = recvfrom(sockfd,
 						  simInDataBuffer,
 						  MAX_RECEIVED_PACKET_SIZE,
@@ -244,18 +243,18 @@ while (1) {
 	type = check_and_parse(simInDataBuffer, nbytes, &packet_offset, &packet_size);
 	switch (type) {
 	case SELF_PACKET:
-		PRINTF("received a self frame\n");
+		PRINTF("Received a self frame\n");
 		break;
 	case INCOMING_PACKET:
 		/* TODO: check CRC */
-		PRINTF("node successfully received a new data packet\n");
+		PRINTF("Node successfully received a new data packet\n");
 		sem_wait(&mysem);
 		if(packet_buf.inuse) {
 			fprintf(stderr, "can't accept a new packet while the previous "
 					"one has not been processed\n");
 			exit(EXIT_FAILURE);
 		}
-		memcpy(packet_buf.data, simInDataBuffer + packet_offset, packet_size- CRC_LENGTH);
+		memcpy(packet_buf.data, simInDataBuffer + packet_offset, packet_size - CRC_LENGTH);
 		packet_buf.size = packet_size - CRC_LENGTH;
 		packet_buf.inuse = 1;
 		process_poll(&udpradio);
@@ -270,13 +269,13 @@ return (void *) NULL;
 
 /*---------------------------------------------------------------------------*/
 void radio_set_channel(int channel) {
-PRINTF("radio_set_channel %d\n", channel);
+PRINTF("udpardio: radio_set_channel %d\n", channel);
 simRadioChannel = channel;
 }
 /*---------------------------------------------------------------------------*/
 void radio_set_txpower(unsigned char power) {
 /* 1 - 100: Number indicating output power */
-PRINTF("radio_set_txpower %d\n", power);
+PRINTF("udpradio: radio_set_txpower %d\n", power);
 simPower = power;
 }
 /*--------------------------------------------------------------------*/
@@ -350,7 +349,7 @@ fprintf(stderr, "-p,--emuport       PHY emulator (wiredto154) port to connect to
 static int init(void) {
 	pthread_t reader;
 	/* set up the udp server */
-	PRINTF("Initializing udpradio\n");
+	PRINTF("udpradio: Initializing\n");
 	sem_init(&mysem, 0, 1);
 	memset(&packet_buf, 0, sizeof(packet_buf));
 
@@ -373,7 +372,7 @@ static int init(void) {
 	int rc = pthread_create(&reader, (void *) NULL, radio_thread, (void *) NULL);
 
 	if (rc < 0) {
-		fprintf(stderr, "pthread_create() failed: %d\n", rc);
+		fprintf(stderr, "udpradio: pthread_create() failed: %d\n", rc);
 		exit(EXIT_FAILURE);
 	}
 	pthread_detach(reader);
@@ -383,13 +382,13 @@ static int init(void) {
 }
 /*---------------------------------------------------------------------------*/
 static int prepare_packet(const void *data, unsigned short len) {
-PRINTF("prepare_packet %d\n", len);
+PRINTF("udpradio: prepare_packet %d\n", len);
 pending_data = data;
 return 0;
 }
 /*---------------------------------------------------------------------------*/
 static int channel_clear(void) {
-PRINTF("channel_clear\n");
+PRINTF("udpradio: channel_clear\n");
 return 0;
 }
 
@@ -420,7 +419,7 @@ static int radio_read(void *buf, unsigned short bufsize) {
 }
 /*---------------------------------------------------------------------------*/
 static int transmit_packet(unsigned short len) {
-PRINTF("transmit_packet %d\n", len);
+PRINTF("udp_radio: transmit_packet %d\n", len);
 int ret = RADIO_TX_ERR;
 if (pending_data != NULL) {
 	ret = radio_send(pending_data, len);
@@ -431,25 +430,25 @@ return ret;
 
 /*---------------------------------------------------------------------------*/
 static int pending_packet(void) {
-PRINTF("pending_packet returning %d \n", pending_data != NULL);
+PRINTF("udp_radio: pending_packet returning %d \n", pending_data != NULL);
 return pending_data != NULL;
 }
 
 /*---------------------------------------------------------------------------*/
 static int receiving_packet(void) {
-PRINTF("receiving_packet returning %d\n", simReceiving);
+PRINTF("udp_radio: receiving_packet returning %d\n", simReceiving);
 return simReceiving;
 }
 /*---------------------------------------------------------------------------*/
 static int radio_on(void) {
-PRINTF("radio_on \n");
+PRINTF("udpradio: radio_on \n");
 simRadioHWOn = 1;
 return 1;
 }
 
 /*---------------------------------------------------------------------------*/
 static int radio_off(void) {
-PRINTF("radio_off \n");
+PRINTF("udpradio: radio_off \n");
 
 simRadioHWOn = 0;
 return 1;
