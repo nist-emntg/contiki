@@ -258,7 +258,6 @@ while (1) {
 		memcpy(packet_buf.data, simInDataBuffer + packet_offset, packet_size- CRC_LENGTH);
 		packet_buf.size = packet_size - CRC_LENGTH;
 		packet_buf.inuse = 1;
-		sem_post(&mysem);
 		process_poll(&udpradio);
 		break;
 	default:
@@ -413,7 +412,6 @@ static int radio_send(const void *payload, unsigned short payload_len) {
 static int radio_read(void *buf, unsigned short bufsize) {
 	int length = 0;
 	PRINTF("udpradio:radio_read (%d on max. %d)\n", packet_buf.size, bufsize);
-	sem_wait(&mysem);
 	length = bufsize < packet_buf.size ? bufsize : packet_buf.size;
 	memcpy(buf, packet_buf.data, length);
 	memset(&packet_buf, 0, sizeof(packet_buf));
