@@ -396,6 +396,13 @@ return 0;
 /*---------------------------------------------------------------------------*/
 static int radio_send(const void *payload, unsigned short payload_len) {
 	char realpayload[MAX_SENT_PACKET_SIZE];
+
+	if(payload_len == 0) {
+		return RADIO_TX_ERR;
+	}
+
+	PRINTF("udpradio: sending %d bytes of data\n", payload_len);
+
 	uint16_t crc = crc16_data(payload, payload_len, 0);
 	realpayload[0] = 0; /* tells the PHY emulator that this is an incoming packet */
 	memcpy(realpayload + SIM_HEADER_LENGTH, payload, payload_len); // copy the payload over
