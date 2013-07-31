@@ -47,19 +47,18 @@
 #include "crc16.h"
 #include "udp-client-setup.h"
 
-#define IEEE154_MTU 127
-#define SIM_HEADER_LENGTH 1
-#define CRC_LENGTH 2
-/* size of simheader + timestamp + maxpacket */
-#define MAX_SENT_PACKET_SIZE (SIM_HEADER_LENGTH + sizeof(struct timeval) + 127)
-/* TODO: find what's the exact maximum received data unit for UDP */
-#define MAX_RECEIVED_PACKET_SIZE 65535
-
 #ifndef PRINTF
 #define PRINTF printf
 #endif
 
 #define char_to_int16(tab, x) ((tab[x] << 8) + tab[x+1])
+
+#define IEEE154_MTU 127
+#define CRC_LENGTH 2
+/* TODO: find what's the exact maximum received data unit for UDP */
+#define MAX_RECEIVED_PACKET_SIZE 65535
+#define SIM_HEADER_LEN 1
+#define TS_LEN 8
 
 char simReceiving = 0;
 char simRadioHWOn = 1;
@@ -73,7 +72,6 @@ static const void *pending_data;
 static int sockfd = 0;
 static struct sockaddr emuaddr;
 static socklen_t emuaddr_len;
-
 
 /* simulation related data */
 static uint16_t identifier = 0; /* the node's identifier in the simulation */
@@ -106,6 +104,10 @@ struct Packet {
 	uint8_t size;
 	uint8_t inuse;
 };
+
+/* size of simulation_header + timestamp + maxpacket */
+#define MAX_SENT_PACKET_SIZE (SIM_HEADER_LEN + TS_LEN + IEEE154_MTU)
+
 
 struct Packet packet_buf;
 
@@ -247,7 +249,10 @@ while (1) {
 		PRINTF("Received a self frame\n");
 		break;
 	case INCOMING_PACKET:
-		/* TODO: check CRC */
+		/* skip the timestamp */
+		packet_offset += TS_LEN;
+		packet_size -= TS_LEN;
+
 		PRINTF("Node successfully received a new data packet\n");
 		sem_wait(&mysem);
 		if(packet_buf.inuse) {
@@ -396,6 +401,7 @@ return 0;
 /*---------------------------------------------------------------------------*/
 static int radio_send(const void *payload, unsigned short payload_len) {
 	char realpayload[MAX_SENT_PACKET_SIZE];
+	struct timeval tv;
 
 	if(payload_len == 0) {
 		return RADIO_TX_ERR;
@@ -403,12 +409,27 @@ static int radio_send(const void *payload, unsigned short payload_len) {
 
 	PRINTF("udpradio: sending %d bytes of data\n", payload_len);
 
+
+	/* tells the PHY emulator that this is an incoming packet */
+	realpayload[0] = INBOUND_FRAME;
+
+
+	gettimeofday(&tv, NULL);
+	/* workaround when tv_sec and tv_usec are encoded on 64 bits */
+	uint32_t t_sec = (uint32_t) tv.tv_sec;
+	uint32_t t_usec = (uint32_t) tv.tv_usec;
+	/* copy the timestamp */
+	memcpy(realpayload + SIM_HEADER_LEN, &t_sec, 4);
+	memcpy(realpayload + SIM_HEADER_LEN + 4, &t_usec, 4);
+
+	memcpy(realpayload + SIM_HEADER_LEN + TS_LEN, payload, payload_len); // copy the payload over
+
+	/* add the CRC */
 	uint16_t crc = crc16_data(payload, payload_len, 0);
-	realpayload[0] = 0; /* tells the PHY emulator that this is an incoming packet */
-	memcpy(realpayload + SIM_HEADER_LENGTH, payload, payload_len); // copy the payload over
-	realpayload[SIM_HEADER_LENGTH + payload_len] = crc & 0xff;
-	realpayload[SIM_HEADER_LENGTH + payload_len + 1] = crc >> 8;
-	sendto(sockfd, realpayload, SIM_HEADER_LENGTH + payload_len + CRC_LENGTH, 0,
+	realpayload[SIM_HEADER_LEN + TS_LEN + payload_len] = crc & 0xff;
+	realpayload[SIM_HEADER_LEN + TS_LEN + payload_len + 1] = crc >> 8;
+
+	sendto(sockfd, realpayload, SIM_HEADER_LEN + TS_LEN + payload_len + CRC_LENGTH, 0,
 		   &emuaddr, emuaddr_len);
 	pending_data = NULL;
 	return RADIO_TX_OK;
