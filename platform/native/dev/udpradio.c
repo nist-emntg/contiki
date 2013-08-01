@@ -53,12 +53,16 @@
 
 #define char_to_int16(tab, x) ((tab[x] << 8) + tab[x+1])
 
+/* 250 kbps -> 31.25kBps
+   time to transfer 1 byte: 32 us */
+#define TRANSFER_TIME_PER_BYTE 32
 #define IEEE154_MTU 127
 #define CRC_LENGTH 2
 /* TODO: find what's the exact maximum received data unit for UDP */
 #define MAX_RECEIVED_PACKET_SIZE 65535
 #define SIM_HEADER_LEN 1
 #define TS_LEN 8
+#define PREAMBLE_LEN 6
 
 char simReceiving = 0;
 char simRadioHWOn = 1;
@@ -224,15 +228,25 @@ int check_and_parse(char * packet, int size, int * offset, int * packet_size) {
 		return UNKNOWN_PACKET;
 }
 /*----------------------------------------------------------------------------*/
+void stop_simulation(void) {
+	PRINTF("asking for the whole simulation to stop (due to inconsistencies)\n");
+	char buffer[1];
+	buffer[0] = SIM_STOP;
+
+	sendto(sockfd, buffer, sizeof(buffer), 0, &emuaddr, emuaddr_len);
+	PRINTF("node is stopping");
+	exit(EXIT_FAILURE);
+}
+
+/*----------------------------------------------------------------------------*/
 void* radio_thread(void *args) {
-struct sockaddr_in src_addr;
-int src_addr_length;
+struct sockaddr src_addr;
+socklen_t src_addr_length;
 int type, packet_offset, packet_size;
 
 char simInDataBuffer[MAX_RECEIVED_PACKET_SIZE];
 
 PRINTF("udpradio: Starting radio_thread\n");
-/* TODO print out the multicast listening port */
 while (1) {
 	PRINTF("udpradio: Listening for a new packet\n");
 	int nbytes = recvfrom(sockfd,
@@ -241,13 +255,42 @@ while (1) {
 						  0,
 						  &src_addr,
 						  &src_addr_length);
+
+	/* we get the current time so that we can compare against the packet own
+	 * timestamp when necessary */
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+
 	PRINTF("Received %d bytes of data from the PHY emulator\n", nbytes);
 
 	type = check_and_parse(simInDataBuffer, nbytes, &packet_offset, &packet_size);
 	switch (type) {
-	case SELF_PACKET:
+	case SELF_PACKET: {
 		PRINTF("Received a self frame\n");
+		int real_packet_size = packet_size - TS_LEN;
+
+		uint32_t sec, usec, transmission_delay = 0;
+		memcpy(&sec, simInDataBuffer + packet_offset, 4);
+		memcpy(&usec, simInDataBuffer + packet_offset + 4, 4);
+
+		if (sec == tv.tv_sec) /* same second */
+			transmission_delay = tv.tv_usec - usec;
+		else if (sec == tv.tv_sec - 1) /* tv_sec is on the next second */
+			transmission_delay = usec - tv.tv_usec;
+		else {/* more than one second delay is clearly not OK */
+			PRINTF("transmission delay is more than a second\n");
+			stop_simulation();
+		}
+
+		if ((PREAMBLE_LEN + real_packet_size) * TRANSFER_TIME_PER_BYTE < transmission_delay) {
+			PRINTF("transmission delay is greater than the theoritical transmission delay"
+				   " (%ld < %ld)\n",
+				   (PREAMBLE_LEN + real_packet_size) * TRANSFER_TIME_PER_BYTE,
+				   transmission_delay);
+			stop_simulation();
+		}
 		break;
+	}
 	case INCOMING_PACKET:
 		/* skip the timestamp */
 		packet_offset += TS_LEN;
@@ -413,7 +456,15 @@ static int radio_send(const void *payload, unsigned short payload_len) {
 	/* tells the PHY emulator that this is an incoming packet */
 	realpayload[0] = INBOUND_FRAME;
 
+	 /* copy the payload over */
+	memcpy(realpayload + SIM_HEADER_LEN + TS_LEN, payload, payload_len);
 
+	/* add the CRC */
+	uint16_t crc = crc16_data(payload, payload_len, 0);
+	realpayload[SIM_HEADER_LEN + TS_LEN + payload_len] = crc & 0xff;
+	realpayload[SIM_HEADER_LEN + TS_LEN + payload_len + 1] = crc >> 8;
+
+	/* timestamp related code is done last, so as to be more accurate */
 	gettimeofday(&tv, NULL);
 	/* workaround when tv_sec and tv_usec are encoded on 64 bits */
 	uint32_t t_sec = (uint32_t) tv.tv_sec;
@@ -421,13 +472,6 @@ static int radio_send(const void *payload, unsigned short payload_len) {
 	/* copy the timestamp */
 	memcpy(realpayload + SIM_HEADER_LEN, &t_sec, 4);
 	memcpy(realpayload + SIM_HEADER_LEN + 4, &t_usec, 4);
-
-	memcpy(realpayload + SIM_HEADER_LEN + TS_LEN, payload, payload_len); // copy the payload over
-
-	/* add the CRC */
-	uint16_t crc = crc16_data(payload, payload_len, 0);
-	realpayload[SIM_HEADER_LEN + TS_LEN + payload_len] = crc & 0xff;
-	realpayload[SIM_HEADER_LEN + TS_LEN + payload_len + 1] = crc >> 8;
 
 	sendto(sockfd, realpayload, SIM_HEADER_LEN + TS_LEN + payload_len + CRC_LENGTH, 0,
 		   &emuaddr, emuaddr_len);
