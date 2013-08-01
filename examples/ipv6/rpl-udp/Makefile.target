@@ -1,1 +1,1 @@
-TARGET = native
+TARGET = minimal-net

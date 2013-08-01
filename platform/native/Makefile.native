@@ -22,6 +22,7 @@ ifeq ($(HOST_OS),Windows)
 CONTIKI_TARGET_SOURCEFILES += wpcap-drv.c wpcap.c
 TARGET_LIBFILES = /lib/w32api/libws2_32.a /lib/w32api/libiphlpapi.a
 else
+TARGET_LIBFILES=-lpthread
 CONTIKI_TARGET_SOURCEFILES += tapdev-drv.c
 #math
 ifneq ($(UIP_CONF_IPV6),1)
