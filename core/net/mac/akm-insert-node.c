@@ -15,14 +15,14 @@
 #include "clock.h"
 
 /*---------------------------------------------------------------------------*/
-void handle_insert_node_request(nodeid_t * sender_id,
+void handle_insert_node_request(nodeid_t * senderId,
 		insert_node_request_t* pinsertNode) {
 	nodeid_t* parentId = &pinsertNode->parent_id;
 	nodeid_t* childId = &pinsertNode->child_id;
 	nodeid_t* myId = getNodeId();
 	nodeid_t* requesting_nodeId = &pinsertNode->requesting_node_id;
 
-	if (!rimeaddr_cmp(&AKM_DATA.temporaryLink,sender_id) ) {
+	if (!rimeaddr_cmp(&AKM_DATA.temporaryLink,senderId) ) {
 		AKM_PRINTF("Not a temporary link");
 		return;
 	}
@@ -30,12 +30,15 @@ void handle_insert_node_request(nodeid_t * sender_id,
 		/* I am the parent node */
 		if (temporary_link_exists()) {
 			AKM_PRINTF("temporary link exists ");
-			send_break_security_association(sender_id,
-					BSA_CONTINUATION_INSERT_NODE, requesting_nodeId);
+			send_confirm_temporary_link(senderId,myId,childId);
 		}
 	} else {
 		/* I am the child - forward the request to the parent. */
+		/* Child gets the request first and forwards it */
 		if (is_nodeid_in_parent_list(parentId)) {
+			rimeaddr_copy(&AKM_MAC_OUTPUT.data.insert_node.requesting_node_id,senderId);
+			rimeaddr_copy(&AKM_MAC_OUTPUT.data.insert_node.parent_id,parentId);
+			rimeaddr_copy(&AKM_MAC_OUTPUT.data.insert_node.child_id,myId);
 			akm_send(parentId,INSERT_NODE_REQUEST,sizeof(insert_node_request_t));
 		}
 	}

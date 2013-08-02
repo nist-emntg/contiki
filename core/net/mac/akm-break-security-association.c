@@ -24,11 +24,9 @@ void handle_break_security_association( nodeid_t* senderId,
 	}
 	if ( AKM_DATA.is_dodag_root) {
 		free_security_association(senderId);
-		AKM_MAC_OUTPUT.data.bsa_reply.status_code = BSA_OK;
-		akm_send(senderId,BREAK_SECURITY_ASSOCIATION_REPLY,sizeof(break_security_association_reply_t));
 	} else {
 		if(pbsa->continuation == BSA_CONTINUATION_INSERT_NODE){
-			nodeid_t* requestingNodeId = &pbsa->continuation_data;
+			nodeid_t* requestingNodeId = &pbsa->insert_node_requester;
 			if ( rimeaddr_cmp(&AKM_DATA.temporaryLink,requestingNodeId )) {
 				send_confirm_temporary_link(requestingNodeId,getNodeId(),senderId);
 			}
@@ -40,9 +38,12 @@ void handle_break_security_association( nodeid_t* senderId,
 }
 
 /*----------------------------------------------------------------------*/
+/* BSA reply is only sent during INSERT-ME by the parent node after confirmation
+ * of link has been received.
+ */
 void handle_break_security_association_reply(nodeid_t* sender, break_security_association_reply_t* msg) {
 	if (msg->status_code == BSA_OK) {
-		/* Free the security association correspondinvg to the sender */
+		/* Free the security association corresponding to the sender */
 		free_security_association(sender);
 		make_temporary_link_permanent();
 		remove_parent(sender);
@@ -56,7 +57,7 @@ void handle_break_security_association_reply(nodeid_t* sender, break_security_as
 void send_break_security_association(nodeid_t* target, bsa_continuation continuation, nodeid_t* pnodeid) {
 	AKM_MAC_OUTPUT.data.bsa_request.continuation = continuation;
 	if ( pnodeid != NULL ) {
-		rimeaddr_copy(&AKM_MAC_OUTPUT.data.bsa_request.continuation_data,pnodeid);
+		rimeaddr_copy(&AKM_MAC_OUTPUT.data.bsa_request.insert_node_requester,pnodeid);
 	}
 	if ( continuation == BSA_CONTINUATION_NONE ) {
 		free_security_association(target);
@@ -67,10 +68,11 @@ void send_break_security_association(nodeid_t* target, bsa_continuation continua
 
 /*----------------------------------------------------------------------*/
 void send_break_security_association_reply(nodeid_t *nodeId,
-		bsa_status_code status) {
-	AKM_MAC_OUTPUT.data.bsa_reply.status_code = status;
+		nodeid_t * requestingNodeId) {
+	AKM_MAC_OUTPUT.data.bsa_reply.status_code = BSA_OK;
+	rimeaddr_copy(&AKM_MAC_OUTPUT.data.bsa_reply.requesting_node_id,requestingNodeId);
 	akm_send(nodeId,BREAK_SECURITY_ASSOCIATION_REPLY,sizeof(AKM_MAC_OUTPUT.data.bsa_reply));
-
+	free_security_association(nodeId);
 }
 
 

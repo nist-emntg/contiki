@@ -23,7 +23,7 @@ bool_t is_temp_link_available() {
 
 /*----------------------------------------------------------------------*/
 void take_temporary_link(nodeid_t *node_id) {
-	memcpy(&AKM_DATA.temporaryLink,node_id, sizeof(nodeid_t));
+	memcpy(&AKM_DATA.temporaryLink,node_id, sizeof(AKM_DATA.temporaryLink));
 }
 
 /*----------------------------------------------------------------------*/
@@ -35,14 +35,13 @@ void make_temporary_link_permanent() {
 
 /*----------------------------------------------------------------------*/
 void restart_temporary_link_timer() {
-	ctimer_reset(&temp_link_timer);
-	ctimer_restart(&temp_link_timer);
+	akm_timer_reset(&AKM_DATA.temp_link_timer);
 }
 
 /*---------------------------------------------------------------------------*/
 void schedule_temp_link_timer() {
-	int time = (TEMP_LINK_TIMER * CLOCK_SECOND);
-	ctimer_set(&temp_link_timer ,time,drop_temporary_link,NULL);
+	int time = TEMP_LINK_TIMER ;
+	akm_timer_set(&AKM_DATA.temp_link_timer ,time,drop_temporary_link,NULL);
 }
 /*---------------------------------------------------------------------------*/
 void send_confirm_temporary_link(nodeid_t* target, nodeid_t* parent,
@@ -74,6 +73,10 @@ void release_temporary_link( void* pvoid)
 /*----------------------------------------------------------------------*/
 void handle_confirm_temporary_link(nodeid_t* sender_id, confirm_temporary_link_request_t* ctl)
 {
+
+	AKM_PRINTF("handle_confirm_temporary_link : ");
+	AKM_PRINTADDR(sender_id);
+
 	nodeid_t* parentId = &ctl->parent_id;
 	nodeid_t* childId = sender_id;
 
@@ -83,22 +86,32 @@ void handle_confirm_temporary_link(nodeid_t* sender_id, confirm_temporary_link_r
 		set_authentication_state(parentId,AUTHENTICATED);
 		set_authentication_state(childId,AUTHENTICATED);
 		AKM_MAC_OUTPUT.data.confirm_temp_link_response.status_code = CTL_OK;
-		AKM_MAC_OUTPUT.data.confirm_temp_link_response.child_id = ctl->child_id;
-		AKM_MAC_OUTPUT.data.confirm_temp_link_response.parent_id = ctl->parent_id;
+		rimeaddr_copy(&AKM_MAC_OUTPUT.data.confirm_temp_link_response.child_id,&ctl->child_id);
+		rimeaddr_copy(&AKM_MAC_OUTPUT.data.confirm_temp_link_response.parent_id,&ctl->parent_id);
+		rimeaddr_copy(&AKM_MAC_OUTPUT.data.confirm_temp_link_response.requesting_node_id,getNodeId());
 	}
+	akm_send(sender_id,CONFIRM_TEMPORARY_LINK_RESPONSE,
+			sizeof(AKM_MAC_OUTPUT.data.confirm_temp_link_response));
 }
 
 /*----------------------------------------------------------------------*/
 void handle_confirm_temporary_link_response(nodeid_t* sender_id,
 		confirm_temporary_link_response_t* ctlr){
-	nodeid_t* nodeid = &ctlr->parent_id;
+
+	AKM_PRINTF("handle_confirm_temporary_link_response : ");
+	AKM_PRINTADDR(sender_id);
+	nodeid_t* parentid = &ctlr->parent_id;
+	nodeid_t* childid= &ctlr->child_id;
+	nodeid_t* requestingNode = &ctlr->requesting_node_id;
 	make_temporary_link_permanent();
-	send_break_security_association_reply(nodeid,BSA_OK);
 	/* now we can let go of our redundant parent. TODO -- check if we still have
 	 * an association with the parent.
 	 */
-	free_security_association(nodeid);
-	remove_parent(nodeid);
+	/* Send a break request back to my parent */
+	if ( ctlr->continuation == CTL_CONTINUATION_BREAK_SECURITY_ASSOCIATION_REPLY){
+			send_break_security_association_reply(childid,requestingNode);
+
+	}
 }
 
 /*------------------------------------------------------------------------*/
@@ -108,26 +121,23 @@ void drop_temporary_link() {
 /*------------------------------------------------------------------------*/
 void handle_pending_auth_timeout(nodeid_t* pnodeid) {
 	AKM_PRINTF("handle_pending_auth_timeout ");
-	PRINTADDR(pnodeid);
-	PRINTADDR("\n");
+	AKM_PRINTADDR(pnodeid);
 	send_break_security_association(pnodeid,BSA_CONTINUATION_NONE,NULL);
 	if (rimeaddr_cmp(pnodeid,&AKM_DATA.temporaryLink)) {
 		drop_temporary_link();
 	}
 	free_security_association(pnodeid);
-	reset_beacon();
 }
 /*---------------------------------------------------------------------------*/
 void schedule_pending_authentication_timer(nodeid_t *target)
 {
+	AKM_PRINTF("schedule_pending_authentication_timer : ");
+	AKM_PRINTADDR(target);
 	int i = find_authenticated_neighbor(target);
 
 	if (i != -1) {
-		if (!ctimer_expired(&AKM_DATA.auth_timer[i])) {
-			ctimer_stop(&AKM_DATA.auth_timer[i]);
-		}
-		clock_time_t time = PENDING_AUTH_TIMEOUT * CLOCK_SECOND;
-		ctimer_set(&AKM_DATA.auth_timer[i],time , handle_pending_auth_timeout, target);
+		clock_time_t time = PENDING_AUTH_TIMEOUT ;
+		akm_timer_set(&AKM_DATA.auth_timer[i],time, handle_pending_auth_timeout,target );
 	}
 }
 

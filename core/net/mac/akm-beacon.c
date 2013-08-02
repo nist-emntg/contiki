@@ -14,17 +14,16 @@
 #include  "mac/akm-mac.h"
 #include  "packetbuf.h"
 #include "clock.h"
-
+static clock_time_t get_beacon_interval();
 /*---------------------------------------------------------------------------*/
 void send_beacon() {
 	AKM_MAC_OUTPUT.data.beacon.is_authenticated = AKM_DATA.is_authenticated;
-	akm_send(ALL_NEIGHBORS, BEACON,
-			sizeof(AKM_MAC_OUTPUT.mac_header)
-					+ sizeof(AKM_MAC_OUTPUT.data.beacon));
+	akm_send(ALL_NEIGHBORS, BEACON,sizeof(AKM_MAC_OUTPUT.data.beacon));
 }
 
 void handle_beacon(nodeid_t *senderId, beacon_t *pbeacon) {
 	AKM_PRINTF("akm_mac:handle_beacon");
+	AKM_PRINTADDR(senderId);
 	if (AKM_DATA.is_dodag_root) {
 		if (!is_neighbor_authenticated(senderId)) {
 			send_challenge(senderId);
@@ -51,40 +50,34 @@ void handle_beacon(nodeid_t *senderId, beacon_t *pbeacon) {
 /*-----------------------------------------------------------------------*/
 static void handle_beacon_timer(void* ptr) {
 	AKM_PRINTF("handle_beacon_timer %d \n", isAuthenticated());
-	clock_time_t time;
-	/* Schedule a  beacon message */
-	if (!isAuthenticated()) {
-		time = BEACON_TIMER_INTERVAL * CLOCK_SECOND;
-	} else {
-		time = BEACON_TIMER_AUTH_INTERVAL * CLOCK_SECOND;
-	}
-	ctimer_set(&beacon_timer, time, handle_beacon_timer, NULL);
-	/* Send out the beacon message */
 	send_beacon();
-
+	AKM_DATA.beacon_timer.interval = get_beacon_interval();
 }
-
+/*-------------------------------------------------------------------------*/
+static clock_time_t get_beacon_interval() {
+	/* Schedule a  beacon message */
+		if (!isAuthenticated() && !isAuthenticationInPending()) {
+			return BEACON_TIMER_INTERVAL ;
+		} else {
+			return BEACON_TIMER_AUTH_INTERVAL ;
+		}
+}
 /*--------------------------------------------------------------------------*/
 void reset_beacon( void ) {
-	ctimer_stop(&beacon_timer);
-	if ( is_capacity_available()) {
-		schedule_beacon();
+	AKM_PRINTF("reset_beacon");
+	if ( is_capacity_available () ) {
+		AKM_DATA.beacon_timer.timer_state = TIMER_STATE_RUNNING;
+		AKM_DATA.beacon_timer.current_count = 0;
+		AKM_DATA.beacon_timer.interval = get_beacon_interval();
+	} else {
+		AKM_DATA.beacon_timer.timer_state = TIMER_STATE_OFF;
 	}
 }
 
 /*---------------------------------------------------------------------------*/
 
 void schedule_beacon(void) {
-
-	AKM_PRINTF("akm_schedule_beacon\n");
-	clock_time_t time;
-	/* Schedule a  beacon message */
-	if (!isAuthenticated()) {
-		time = (BEACON_TIMER_INTERVAL * CLOCK_SECOND);
-	} else {
-		time = (BEACON_TIMER_AUTH_INTERVAL * CLOCK_SECOND);
-	}
 	send_beacon();
-	ctimer_set(&beacon_timer, time, handle_beacon_timer, NULL);
+	akm_timer_set(&AKM_DATA.beacon_timer, get_beacon_interval(), handle_beacon_timer, NULL);
 }
 
