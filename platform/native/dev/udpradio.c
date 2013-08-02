@@ -83,7 +83,7 @@ static char *mcast_addr = NULL, *emuaddrstr = NULL;
 static char *mport = NULL, *emuport = NULL;
 
 /* for parsing command line argument */
-const struct option longopt [] = {
+const static struct option longopt [] = {
 	{ "identifier", required_argument, NULL, 'i' },
 	{ "maddr", required_argument, NULL, 'm' },
 	{ "mport", required_argument, NULL, 'l' },
@@ -330,6 +330,7 @@ simPower = power;
 /*--------------------------------------------------------------------*/
 static void parse_command_line(void) {
 	int c, opt_idx = 0;
+	optind=0; /* because we used getopt in the contiki-main.c file */
 	while((c = getopt_long(contiki_argc,
 						   contiki_argv,
 						   "i:m:l:e:p:h",
