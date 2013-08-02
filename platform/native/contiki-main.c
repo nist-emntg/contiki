@@ -226,11 +226,6 @@ main(int argc, char **argv)
 	  free(temp_argv[i]);
   free(temp_argv);
 
-  if (! identifier) {
-	  fprintf(stderr, "--identifier argument is mandatory\n");
-	  return -1;
-  }
-
   /* derive the node id from the identifier */
   serial_id[6] = identifier >> 8;
   serial_id[7] = identifier & 0xff;
