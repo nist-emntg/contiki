@@ -15,8 +15,9 @@
 
 /*----------------------------------------------------------------------*/
 
-void handle_break_security_association( nodeid_t* senderId,
+void handle_break_security_association(
 		break_security_association_request_t* pbsa) {
+	nodeid_t* senderId = & AKM_DATA.sender_id;
 	if (get_authentication_state(senderId) != AUTHENTICATED  &&
 			get_authentication_state(senderId) != AUTH_PENDING) {
 		AKM_PRINTF("Not authenticated sender!");
@@ -41,7 +42,8 @@ void handle_break_security_association( nodeid_t* senderId,
 /* BSA reply is only sent during INSERT-ME by the parent node after confirmation
  * of link has been received.
  */
-void handle_break_security_association_reply(nodeid_t* sender, break_security_association_reply_t* msg) {
+void handle_break_security_association_reply( break_security_association_reply_t* msg) {
+	nodeid_t* sender = &AKM_DATA.sender_id;
 	if (msg->status_code == BSA_OK) {
 		/* Free the security association corresponding to the sender */
 		free_security_association(sender);

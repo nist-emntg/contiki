@@ -110,7 +110,8 @@ void do_send_challenge(void* pvoid) {
 	}
 	akm_send(target, AUTH_CHALLENGE,sizeof(AKM_MAC_OUTPUT.data.auth_challenge));
 	set_authentication_state(target, CHALLENGE_SENT_WAITING_FOR_OK);
-	akm_timer_stop(&AKM_DATA.send_challenge_delay_timer);
+	int i = find_authenticated_neighbor(target);
+	akm_timer_stop(&AKM_DATA.send_challenge_delay_timer[i]);
 
 }
 
@@ -132,9 +133,9 @@ void send_challenge(nodeid_t* target) {
 }
 
 /*---------------------------------------------------------------------------*/
-void handle_auth_challenge(nodeid_t* sender_id,
+void handle_auth_challenge(
 		auth_challenge_request_t* pauthChallenge) {
-
+	nodeid_t* sender_id = &AKM_DATA.sender_id;
 	AKM_PRINTF("handle_auth_challenge : ");
 	AKM_PRINTADDR(sender_id);
 	if (!sec_verify_auth_request(pauthChallenge)) {
@@ -154,9 +155,10 @@ void handle_auth_challenge(nodeid_t* sender_id,
 }
 /*----------------------------------------------------------------------*/
 
-void handle_auth_challenge_response(nodeid_t* sender_id,
+void handle_auth_challenge_response(
 		auth_challenge_response_t* pacr) {
 
+	nodeid_t* sender_id = &AKM_DATA.sender_id;
 	AKM_PRINTF("handle_auth_challenge_response ")
 ;
 	AKM_PRINTADDR(sender_id);
@@ -211,9 +213,9 @@ void handle_auth_challenge_response(nodeid_t* sender_id,
 }
 
 /*---------------------------------------------------------------------------*/
-void handle_auth_ack(nodeid_t* sender, auth_ack_t* pauthAck) {
-	AKM_PRINTF("handle_auth_ack : ")
-;
+void handle_auth_ack( auth_ack_t* pauthAck) {
+	AKM_PRINTF("handle_auth_ack : ");
+	nodeid_t* sender = &AKM_DATA.sender_id;
 	AKM_PRINTADDR(sender);
 
 	nodeid_t *pparent = &pauthAck->parent_id;

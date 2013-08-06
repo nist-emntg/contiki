@@ -71,9 +71,10 @@ void release_temporary_link( void* pvoid)
 
 
 /*----------------------------------------------------------------------*/
-void handle_confirm_temporary_link(nodeid_t* sender_id, confirm_temporary_link_request_t* ctl)
+void handle_confirm_temporary_link( confirm_temporary_link_request_t* ctl)
 {
 
+	nodeid_t* sender_id = & AKM_DATA.sender_id;
 	AKM_PRINTF("handle_confirm_temporary_link : ");
 	AKM_PRINTADDR(sender_id);
 
@@ -95,9 +96,9 @@ void handle_confirm_temporary_link(nodeid_t* sender_id, confirm_temporary_link_r
 }
 
 /*----------------------------------------------------------------------*/
-void handle_confirm_temporary_link_response(nodeid_t* sender_id,
+void handle_confirm_temporary_link_response(
 		confirm_temporary_link_response_t* ctlr){
-
+	nodeid_t* sender_id = &AKM_DATA.sender_id;
 	AKM_PRINTF("handle_confirm_temporary_link_response : ");
 	AKM_PRINTADDR(sender_id);
 	nodeid_t* parentid = &ctlr->parent_id;
