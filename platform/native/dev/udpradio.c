@@ -62,7 +62,16 @@
 #define MAX_RECEIVED_PACKET_SIZE 65535
 #define SIM_HEADER_LEN 1
 #define TS_LEN 8
-#define PREAMBLE_LEN 6
+/* duration of the Clear Channel Assesment (in microseconds) */
+#define CCA_DURATION 320
+/* preamble + start of frame + frame length */
+#define PHY_HEADER (6+1+1)
+/* computation time includes many tiny things:
+ - the time it takes for the receiver to copy the packet in the buffer
+ - the time it takes to raise an interrupt
+ in the end, this value is more or less arbitrary
+ */
+#define COMPUTATION_DURATION 2500
 
 char simReceiving = 0;
 char simRadioHWOn = 1;
@@ -282,11 +291,15 @@ while (1) {
 			stop_simulation();
 		}
 
-		if ((PREAMBLE_LEN + real_packet_size) * TRANSFER_TIME_PER_BYTE < transmission_delay) {
+		if ((PHY_HEADER + real_packet_size) * TRANSFER_TIME_PER_BYTE
+				+ CCA_DURATION
+				+ COMPUTATION_DURATION
+				< transmission_delay) {
 			PRINTF("transmission delay is greater than the theoritical transmission delay"
-				   " (%ld < %ld)\n",
-				   (PREAMBLE_LEN + real_packet_size) * TRANSFER_TIME_PER_BYTE,
-				   transmission_delay);
+				   " (%ld > %ld)\n",
+				   transmission_delay,
+				   (PHY_HEADER + real_packet_size) * TRANSFER_TIME_PER_BYTE
+				   + CCA_DURATION + COMPUTATION_DURATION);
 			stop_simulation();
 		}
 		break;
@@ -477,6 +490,8 @@ static int radio_send(const void *payload, unsigned short payload_len) {
 	sendto(sockfd, realpayload, SIM_HEADER_LEN + TS_LEN + payload_len + CRC_LENGTH, 0,
 		   &emuaddr, emuaddr_len);
 	pending_data = NULL;
+	/* simulate the CCA delay incurred by the unslotted CSMA-CA */
+	usleep(CCA_DURATION);
 	return RADIO_TX_OK;
 }
 /*---------------------------------------------------------------------------*/
