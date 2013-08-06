@@ -85,24 +85,25 @@ typedef struct certificate{
 
 /* Placeholder */
 typedef struct session_key {
-	char dummy[16];
+	char dummy[128];
 } session_key_t;
 
 #define AKM_DISPATCH_BYTE 0x47 /*binary 0100111 -- reserved value in 6lowpan */
 
 typedef enum {
 	UNFRAGMENTED = 1,
-	FRAG1 = 1,
-	FRAGN = 2
+	FRAG1 = 2,
+	FRAGN = 3
 } frag_type;
 typedef struct akm_frag1 {
 	uint8_t  id;        /* sequentially increasing fragid ID */
-	uint16_t total_length;
+	uint8_t  fraglength;
+	uint16_t total_data_length;
 } akm_frag1_t;
 
 typedef struct akm_fragn {
 	uint8_t id;
-	uint8_t length;
+	uint8_t fraglength;
 	uint16_t offset;
 } akm_fragn_t;
 
@@ -262,7 +263,9 @@ typedef struct akm_data
 	bool_t is_authenticated;
 	uint8_t output_fragid;
 	uint8_t input_fragid;
-	uint16_t input_msglen;
+	nodeid_t sender_id;
+	nodeid_t fragment_sender;
+	uint16_t remaining_messagelen;
 	nodeid_t temporaryLink;
 	authenticated_neighbor_t authenticated_neighbors[NODE_KEY_CACHE_SIZE];
 
@@ -282,14 +285,13 @@ extern akm_mac_t AKM_MAC_OUTPUT;
 
 void free_security_association(nodeid_t* pnodeid);
 
-void handle_auth_ack(nodeid_t* sender, auth_ack_t* pauthAck);
-void handle_auth_challenge(nodeid_t* sender_id, auth_challenge_request_t* pauthChallenge);
-void handle_confirm_temporary_link(nodeid_t* sender_id, confirm_temporary_link_request_t* ctl);
-void handle_beacon(nodeid_t *senderId, beacon_t *pbeacon);
-void handle_auth_challenge_response(nodeid_t *senderId,auth_challenge_response_t *pauthChallengeResponse);
-void handle_break_security_association(nodeid_t *senderId, break_security_association_request_t* pbsa);
-void handle_break_security_association_reply(nodeid_t* sender, break_security_association_reply_t* msg);
-void handle_confirm_temporary_link(nodeid_t* sender_id, confirm_temporary_link_request_t* ctl);
+void handle_auth_ack(auth_ack_t* pauthAck);
+void handle_auth_challenge(auth_challenge_request_t* pauthChallenge);
+void handle_beacon(beacon_t *pbeacon);
+void handle_auth_challenge_response(auth_challenge_response_t *pauthChallengeResponse);
+void handle_break_security_association(break_security_association_request_t* pbsa);
+void handle_break_security_association_reply(break_security_association_reply_t* msg);
+void handle_confirm_temporary_link(confirm_temporary_link_request_t* ctl);
 bool_t is_capacity_available() ;
 bool_t is_authenticated(nodeid_t* pnodeid);
 void akm_send(nodeid_t *targetId, akm_op_t command, int size);
@@ -327,7 +329,7 @@ void send_confirm_temporary_link(nodeid_t* target, nodeid_t* parent, nodeid_t* c
 void remove_parent(nodeid_t* parent_nodeid);
 void drop_temporary_link();
 bool_t set_authentication_state(nodeid_t* node_id, authentication_state authState);
-void handle_confirm_temporary_link_response(nodeid_t* sender_id,
+void handle_confirm_temporary_link_response(
 		confirm_temporary_link_response_t* ctlr);
 bool_t is_neighbor_authenticated(nodeid_t* neighbor_id) ;
 void send_challenge(nodeid_t* target);

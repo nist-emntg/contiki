@@ -19,7 +19,8 @@
 #include "clock.h"
 #include "rpl/rpl.h"
 #include "random.h"
-
+#define NDEBUG
+#include <assert.h>
 extern void rpl_remove_parent(rpl_dag_t *dag, rpl_parent_t *parent);
 extern rpl_parent_t *rpl_select_redundant_parent(rpl_dag_t *dag);
 void free_slot(int slot);
@@ -32,6 +33,9 @@ akm_mac_t AKM_MAC_OUTPUT;
 akm_data_t AKM_DATA;
 
 akm_mac_t AKM_MAC_INPUT;
+
+#define MAX_TRANSMIT_SIZE (PACKETBUF_SIZE - PACKETBUF_HDR_SIZE)
+
 
 /*--------------------------------------------------------------------------*/
 void internal_error(char* error_message) {
@@ -185,6 +189,10 @@ static void check_and_restart(void *ptr) {
 void add_authenticated_neighbor(nodeid_t* pnodeId, session_key_t* sessionKey,
 		authentication_state authState) {
 
+	AKM_PRINTF(
+			"add_authenticated_neighbor : authState =  %s ",get_auth_state_as_string(authState))
+;
+	AKM_PRINTADDR(pnodeId);
 	int i = 0;
 	for (i = 0; i < NELEMS(AKM_DATA.authenticated_neighbors); i++) {
 		if (is_nodeid_zero(&AKM_DATA.authenticated_neighbors[i].node_id)) {
@@ -254,7 +262,7 @@ void akm_send(nodeid_t *targetId, akm_op_t command, int size) {
 	int sizeToSend;
 	frag_size = sizeof(akm_mac_header_t) + size;
 	AKM_MAC_OUTPUT.mac_header.command = command;
-	if (frag_size < PACKETBUF_SIZE) {
+	if (frag_size <= MAX_TRANSMIT_SIZE) {
 		AKM_MAC_OUTPUT.mac_header.ftype = UNFRAGMENTED;
 		packetbuf_copyfrom(&AKM_MAC_OUTPUT, frag_size);
 		packetbuf_set_addr(PACKETBUF_ADDR_RECEIVER, targetId);
@@ -265,37 +273,65 @@ void akm_send(nodeid_t *targetId, akm_op_t command, int size) {
 		NETSTACK_RADIO.send(packetbuf_hdrptr(), sizeToSend);
 	} else {
 		/* Message needs to be fragmented */
-		AKM_PRINTF("Fragmentation!!\n")
+		AKM_PRINTF("Fragmentation header\n")
 ;		int startbuf = 0;
-		int bytes_to_copy = frag_size;
+		int chunksize = MAX_TRANSMIT_SIZE - sizeof(AKM_MAC_OUTPUT.mac_header);
+
+		packetbuf_set_addr(PACKETBUF_ADDR_RECEIVER, targetId);
+		packetbuf_set_addr(PACKETBUF_ADDR_SENDER, getNodeId());
+		int bytes_to_copy = frag_size - sizeof(AKM_MAC_OUTPUT.mac_header);
 		uint8_t fid = AKM_DATA.output_fragid;
-		AKM_DATA.output_fragid = (AKM_DATA.output_fragid++ % 127) + 1;
+		AKM_DATA.output_fragid = (AKM_DATA.output_fragid++ % 256);
+		AKM_MAC_OUTPUT.mac_header.protocol_id = AKM_DISPATCH_BYTE;
 		AKM_MAC_OUTPUT.mac_header.ftype = FRAG1;
 		AKM_MAC_OUTPUT.mac_header.frag.frag1.id = fid;
-		AKM_MAC_OUTPUT.mac_header.frag.frag1.total_length = frag_size;
+		AKM_MAC_OUTPUT.mac_header.frag.frag1.fraglength = chunksize;
+		AKM_MAC_OUTPUT.mac_header.frag.frag1.total_data_length = size;
 		/* Send out a burst of packets. Do we want to wait between sends?*/
-		while (startbuf < frag_size) {
-			packetbuf_copyfrom(&AKM_MAC_OUTPUT + startbuf,
-					(bytes_to_copy < PACKETBUF_SIZE ?
-							bytes_to_copy : PACKETBUF_SIZE));
-			startbuf += PACKETBUF_SIZE;
-			if (bytes_to_copy > PACKETBUF_SIZE) {
-				bytes_to_copy -= PACKETBUF_SIZE;
-			}
+		AKM_PRINTF("FRAG1 header fragid = %d fraglength = %d total_data_length = %d\n",
+				fid,chunksize,size);
+		packetbuf_copyfrom((char*) &AKM_MAC_OUTPUT, MAX_TRANSMIT_SIZE);
+		NETSTACK_CONF_FRAMER.create();
+		sizeToSend = packetbuf_totlen();
+		NETSTACK_RADIO.prepare(packetbuf_hdrptr(), sizeToSend);
+		NETSTACK_RADIO.send(packetbuf_hdrptr(), sizeToSend);
+		bytes_to_copy -= chunksize;
+		startbuf += chunksize;
+		packetbuf_clear();
+
+		do {
+
+			chunksize = (bytes_to_copy < MAX_TRANSMIT_SIZE - sizeof(AKM_MAC_OUTPUT.mac_header) ?
+						 bytes_to_copy : MAX_TRANSMIT_SIZE - sizeof(AKM_MAC_OUTPUT.mac_header));
+			AKM_MAC_OUTPUT.mac_header.protocol_id = AKM_DISPATCH_BYTE;
+			AKM_MAC_OUTPUT.mac_header.ftype = FRAGN;
+			AKM_MAC_OUTPUT.mac_header.frag.fragn.id = fid;
+			AKM_MAC_OUTPUT.mac_header.frag.fragn.offset = startbuf;
+			AKM_MAC_OUTPUT.mac_header.frag.fragn.fraglength = chunksize;
+			void* dataptr = packetbuf_dataptr();
+			packetbuf_set_datalen(chunksize + sizeof(AKM_MAC_OUTPUT.mac_header));
+			AKM_PRINTF("FRAGN header fragid = %d fraglength = %d offset = %d\n",
+							fid,chunksize,startbuf);
+
+			/* Copy the mac header in first */
+			memcpy(dataptr, (char*) &AKM_MAC_OUTPUT , sizeof(AKM_MAC_OUTPUT.mac_header));
+			/* copy the data part in next*/
+			dataptr += sizeof(AKM_MAC_OUTPUT.mac_header);
+			memcpy(dataptr,(char*) &AKM_MAC_OUTPUT.data + startbuf, chunksize);
+
+
 			packetbuf_set_addr(PACKETBUF_ADDR_RECEIVER, targetId);
 			packetbuf_set_addr(PACKETBUF_ADDR_SENDER, getNodeId());
 			NETSTACK_CONF_FRAMER.create();
 			sizeToSend = packetbuf_totlen();
 			NETSTACK_RADIO.prepare(packetbuf_hdrptr(), sizeToSend);
 			NETSTACK_RADIO.send(packetbuf_hdrptr(), sizeToSend);
-			AKM_MAC_OUTPUT.mac_header.ftype = FRAGN;
-			AKM_MAC_OUTPUT.mac_header.frag.fragn.id = fid;
-			AKM_MAC_OUTPUT.mac_header.frag.fragn.offset = startbuf;
-			AKM_MAC_OUTPUT.mac_header.frag.fragn.length = (
-					bytes_to_copy < PACKETBUF_SIZE ?
-							bytes_to_copy : PACKETBUF_SIZE);
+			packetbuf_clear();
 
-		}
+			bytes_to_copy -= chunksize;
+			startbuf += chunksize;
+
+		} while (bytes_to_copy > 0);
 
 	}
 	packetbuf_clear();
@@ -350,16 +386,19 @@ bool_t isAuthenticationInPending() {
 void akm_route_message() {
 	akm_mac_t* pakm_mac = &AKM_MAC_INPUT;
 
-	nodeid_t* sender_id = (nodeid_t*) packetbuf_addr(PACKETBUF_ADDR_SENDER);
+	rimeaddr_copy(&AKM_DATA.sender_id, (nodeid_t*) packetbuf_addr(PACKETBUF_ADDR_SENDER));
 	akm_op_t op = pakm_mac->mac_header.command;
 	nodeid_t* receiver_id = (nodeid_t*) packetbuf_addr(PACKETBUF_ADDR_RECEIVER);
 
-	AKM_PRINTF("sender_id : ");
-	AKM_PRINTADDR(sender_id);
+	AKM_PRINTF("sender_id : ")
+;
+	AKM_PRINTADDR(&AKM_DATA.sender_id);
 
-	AKM_PRINTF("receiver_id : ");
+	AKM_PRINTF("receiver_id : ")
+;
 	AKM_PRINTADDR(receiver_id);
-	AKM_PRINTF("my_nodeid ");
+	AKM_PRINTF("my_nodeid ")
+;
 	AKM_PRINTADDR(getNodeId());
 
 	if (!rimeaddr_cmp(receiver_id, ALL_NEIGHBORS)
@@ -368,7 +407,7 @@ void akm_route_message() {
 ;		return;
 	}
 
-	if (rimeaddr_cmp(sender_id, getNodeId())) {
+	if (rimeaddr_cmp(&AKM_DATA.sender_id, getNodeId())) {
 		AKM_PRINTF("akm_route_message: Message originated by me -- dropping\n")
 ;
 		return;
@@ -376,37 +415,33 @@ void akm_route_message() {
 
 	switch (op) {
 	case BEACON:
-		handle_beacon(sender_id, &pakm_mac->data.beacon);
+		handle_beacon(&pakm_mac->data.beacon);
 		break;
 	case AUTH_CHALLENGE:
-		handle_auth_challenge(sender_id, &pakm_mac->data.auth_challenge);
+		handle_auth_challenge( &pakm_mac->data.auth_challenge);
 		break;
 	case AUTH_CHALLENGE_RESPONSE:
-		handle_auth_challenge_response(sender_id,
+		handle_auth_challenge_response(
 				&pakm_mac->data.auth_challenge_response);
 		break;
 	case AUTH_ACK:
-		handle_auth_ack(sender_id, &pakm_mac->data.auth_ack);
+		handle_auth_ack( &pakm_mac->data.auth_ack);
 		break;
 
 	case BREAK_SECURITY_ASSOCIATION_REQUEST:
-		handle_break_security_association(sender_id,
-				&pakm_mac->data.bsa_request);
+		handle_break_security_association(&pakm_mac->data.bsa_request);
 		break;
 
 	case BREAK_SECURITY_ASSOCIATION_REPLY:
-		handle_break_security_association_reply(sender_id,
-				&pakm_mac->data.bsa_reply);
+		handle_break_security_association_reply(&pakm_mac->data.bsa_reply);
 		break;
 
 	case CONFIRM_TEMPORARY_LINK_REQUEST:
-		handle_confirm_temporary_link(sender_id,
-				&pakm_mac->data.confirm_temp_link_request);
+		handle_confirm_temporary_link(&pakm_mac->data.confirm_temp_link_request);
 		break;
 
 	case CONFIRM_TEMPORARY_LINK_RESPONSE:
-		handle_confirm_temporary_link_response(sender_id,
-				&pakm_mac->data.confirm_temp_link_response);
+		handle_confirm_temporary_link_response(&pakm_mac->data.confirm_temp_link_response);
 		break;
 
 	default:
@@ -489,8 +524,9 @@ void akm_packet_input(void) {
 	akm_mac_t* pakm_mac = packetbuf_dataptr();
 
 	AKM_PRINTF(
-			"akm_mac::datalen = %d sizeof buffer = %d \n", packetbuf_datalen(),sizeof(AKM_MAC_INPUT));
-
+			"akm_mac::datalen = %d sizeof buffer = %d  protocol_id = %x \n",
+					packetbuf_datalen(),sizeof(AKM_MAC_INPUT),
+					pakm_mac->mac_header.protocol_id);
 
 	if (pakm_mac->mac_header.protocol_id == AKM_DISPATCH_BYTE) {
 		if (pakm_mac->mac_header.ftype == UNFRAGMENTED) {
@@ -503,30 +539,39 @@ void akm_packet_input(void) {
 			}
 		} else {
 			if (packetbuf_datalen() <= sizeof(AKM_MAC_INPUT)) {
-				AKM_PRINTF("Fragmentation header")
-;
+				nodeid_t* sender = (nodeid_t*) packetbuf_addr(PACKETBUF_ADDR_SENDER);
 				if (pakm_mac->mac_header.ftype == FRAG1) {
+					AKM_PRINTF("FRAG1 header total_length =  %d fragid =  %d fraglength = %d \n",
+							pakm_mac->mac_header.frag.frag1.total_data_length,
+							pakm_mac->mac_header.frag.frag1.id,
+							pakm_mac->mac_header.frag.frag1.fraglength);
 					AKM_DATA.input_fragid = pakm_mac->mac_header.frag.frag1.id;
-					AKM_DATA.input_msglen =
-							pakm_mac->mac_header.frag.frag1.total_length;
-					memcpy(&AKM_MAC_INPUT, pakm_mac, packetbuf_datalen());
+					rimeaddr_copy(&AKM_DATA.fragment_sender, sender);
+					memcpy(&AKM_MAC_INPUT, pakm_mac, pakm_mac->mac_header.frag.frag1.fraglength + sizeof(pakm_mac->mac_header));
+					AKM_DATA.remaining_messagelen = pakm_mac->mac_header.frag.frag1.total_data_length - pakm_mac->mac_header.frag.frag1.fraglength;
 				} else if (pakm_mac->mac_header.ftype == FRAGN
 						&& AKM_DATA.input_fragid
-								== pakm_mac->mac_header.frag.fragn.id) {
+						== pakm_mac->mac_header.frag.fragn.id
+						&& rimeaddr_cmp(&AKM_DATA.fragment_sender,sender)) {
+					AKM_PRINTF("FRAGN header fragid = %d fraglength = %d offset = %d \n",
+							pakm_mac->mac_header.frag.fragn.id,
+							pakm_mac->mac_header.frag.fragn.fraglength,
+							pakm_mac->mac_header.frag.fragn.offset);
+					assert( pakm_mac->mac_header.frag.fragn.offset + pakm_mac->mac_header.frag.fragn.fraglength <= sizeof(AKM_MAC_INPUT));
 					memcpy(
-							&AKM_MAC_INPUT
-									+ pakm_mac->mac_header.frag.fragn.offset,
-							pakm_mac + sizeof(pakm_mac->mac_header),
-							pakm_mac->mac_header.frag.fragn.length);
-					AKM_DATA.input_msglen -=
-							pakm_mac->mac_header.frag.fragn.length;
+							(char*)&AKM_MAC_INPUT.data + pakm_mac->mac_header.frag.fragn.offset,
+							&pakm_mac ->data ,
+							pakm_mac->mac_header.frag.fragn.fraglength);
+					AKM_DATA.remaining_messagelen -=
+							pakm_mac->mac_header.frag.fragn.fraglength;
+					AKM_PRINTF("input_msglen = %d\n",AKM_DATA.remaining_messagelen);
 				}
-				if (AKM_DATA.input_msglen == 0) {
+				if (AKM_DATA.remaining_messagelen == 0) {
 					akm_route_message();
 				}
 			} else {
-				AKM_PRINTF("Packetbuf is too big. DROPPING!!\n")
-;			}
+				AKM_PRINTF("Packetbuf is too big. DROPPING!!\n");
+			}
 		}
 		packetbuf_clear();
 	} else if (is_neighbor_authenticated(

@@ -21,7 +21,8 @@ void send_beacon() {
 	akm_send(ALL_NEIGHBORS, BEACON,sizeof(AKM_MAC_OUTPUT.data.beacon));
 }
 
-void handle_beacon(nodeid_t *senderId, beacon_t *pbeacon) {
+void handle_beacon(beacon_t *pbeacon) {
+	nodeid_t* senderId = & AKM_DATA.sender_id;
 	AKM_PRINTF("akm_mac:handle_beacon");
 	AKM_PRINTADDR(senderId);
 	if (AKM_DATA.is_dodag_root) {
