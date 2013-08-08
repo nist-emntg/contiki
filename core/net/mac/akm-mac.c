@@ -167,12 +167,11 @@ static void fire_timer(akm_timer_t* pakmTimer) {
 				% pakmTimer->interval;
 		if (pakmTimer->current_count == 0) {
 			(*pakmTimer->f)(pakmTimer->ptr);
-		} else {
-			pakmTimer->current_count++;
 		}
 	}
 }
 static void check_and_restart(void *ptr) {
+	AKM_PRINTF("check_and_restart master timer\n");
 	int i;
 	fire_timer(&AKM_DATA.beacon_timer);
 	for (i = 0; i < NELEMS(AKM_DATA.send_challenge_delay_timer); i++) {
@@ -183,7 +182,11 @@ static void check_and_restart(void *ptr) {
 	}
 	fire_timer(&AKM_DATA.temp_link_timer);
 	/* schedule it again */
-	ctimer_reset(&AKM_DATA.master_timer);
+	if ( ctimer_expired(&AKM_DATA.master_timer)) {
+		ctimer_restart(&AKM_DATA.master_timer);
+	} else {
+		ctimer_reset(&AKM_DATA.master_timer);
+	}
 }
 /*--------------------------------------------------------------------------*/
 void add_authenticated_neighbor(nodeid_t* pnodeId, session_key_t* sessionKey,

@@ -90,6 +90,8 @@ get_session_key(nodeid_t *neighbor_id) {
 /*---------------------------------------------------------------------------*/
 void do_send_challenge(void* pvoid) {
 	nodeid_t* target = (nodeid_t*) pvoid;
+	AKM_PRINTF("do_send_challenge ");
+	AKM_PRINTADDR(target);
 	if (is_capacity_available()) {
 		AKM_MAC_OUTPUT.data.auth_challenge.status_code = AUTH_SPACE_AVAILABLE;
 	} else if (is_redundant_parent_available()) {
