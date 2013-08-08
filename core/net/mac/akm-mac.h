@@ -22,7 +22,7 @@
 #define AKM_PRINTF printf("akm:") ; printf
 #define AKM_PRINTADDR(addr)\
 	if ( addr == NULL) {  \
-	printf ("NULL"); \
+		printf ("NULL"); \
 	} else {\
 	printf(" %02x%02x:%02x%02x:%02x%02x:%02x%02x \n", \
 	((uint8_t *)addr)[0], ((uint8_t *)addr)[1], \
@@ -223,7 +223,7 @@ typedef struct akm_packet
 
 /* The list of neighbors for MARTA  -- we'll pass this in uding command line args*/
 #ifndef NODE_KEY_CACHE_SIZE
-#define NODE_KEY_CACHE_SIZE 6
+#define NODE_KEY_CACHE_SIZE 3
 #endif
 #define NELEMS(x)  (sizeof(x) / sizeof(x[0]))
 
