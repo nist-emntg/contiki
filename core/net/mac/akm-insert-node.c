@@ -17,6 +17,8 @@
 /*---------------------------------------------------------------------------*/
 void handle_insert_node_request(nodeid_t * senderId,
 		insert_node_request_t* pinsertNode) {
+	AKM_PRINTF("handle_insert_node_request: ");
+	AKM_PRINTADDR(senderId);
 	nodeid_t* parentId = &pinsertNode->parent_id;
 	nodeid_t* childId = &pinsertNode->child_id;
 	nodeid_t* myId = getNodeId();
@@ -46,6 +48,9 @@ void handle_insert_node_request(nodeid_t * senderId,
 /*---------------------------------------------------------------------------*/
 void
 send_insert_node_request(nodeid_t* target,nodeid_t* parentId) {
+	AKM_PRINTF("send_insert_node_request: targetId ");
+	AKM_PRINTADDR(target);
+	AKM_PRINTADDR(parentId);
 	memcpy(&AKM_MAC_OUTPUT.data.insert_node.requesting_node_id,getNodeId(),sizeof(nodeid_t));
 	memcpy(&AKM_MAC_OUTPUT.data.insert_node.parent_id, parentId,sizeof(nodeid_t));
 	memcpy(&AKM_MAC_OUTPUT.data.insert_node.child_id,target,sizeof(nodeid_t));
