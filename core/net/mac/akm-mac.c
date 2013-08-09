@@ -159,6 +159,20 @@ void akm_timer_stop(akm_timer_t* c) {
 
 void set_master_timer() {
 	ctimer_set(&AKM_DATA.master_timer, CLOCK_SECOND, check_and_restart, NULL);
+#ifdef AKM_DEBUG
+	int i;
+	strcpy(AKM_DATA.beacon_timer.timername,"beacon");
+	char buf[32];
+	for (i = 0; i < NELEMS(AKM_DATA.send_challenge_delay_timer); i++) {
+		sprintf(buf,"%s-%d","challenge-delay",i);
+		strcpy(AKM_DATA.send_challenge_delay_timer[i].timername,buf);
+	}
+	for (i = 0; i < NELEMS(AKM_DATA.auth_timer); i++) {
+		sprintf(buf,"%s-%d","auth-timeout",i);
+		strcpy(AKM_DATA.auth_timer[i].timername,buf);
+	}
+	strcpy(AKM_DATA.temp_link_timer.timername,"temp-link-timeout");
+#endif
 
 }
 
@@ -166,6 +180,7 @@ static void fire_timer(akm_timer_t* pakmTimer) {
 	if (pakmTimer->timer_state == TIMER_STATE_RUNNING) {
 		pakmTimer->current_count = (pakmTimer->current_count + 1)
 				% pakmTimer->interval;
+		AKM_PRINTF("timer:%s count %d\n",pakmTimer->timername,pakmTimer->current_count);
 		if (pakmTimer->current_count == 0) {
 			(*pakmTimer->f)(pakmTimer->ptr);
 		}
@@ -466,6 +481,7 @@ static void init(void) {
 	AKM_DATA.is_dodag_root = 0;
 	/*Fragment id counter */
 	AKM_DATA.output_fragid = 1;
+
 	/* set the master timer running*/
 	set_master_timer();
 
@@ -530,7 +546,7 @@ void akm_packet_input(void) {
 	akm_mac_t* pakm_mac = packetbuf_dataptr();
 
 	AKM_PRINTF(
-			"akm_mac::datalen = %d sizeof buffer = %d  protocol_id = %x \n",
+			"akm_mac::datalen = %d sizeof buffer = %ul  protocol_id = %x \n",
 					packetbuf_datalen(),sizeof(AKM_MAC_INPUT),
 					pakm_mac->mac_header.protocol_id);
 

@@ -50,14 +50,15 @@ typedef enum {
 } akm_op_t;
 
 /* MARTA related constants */
-#define BEACON_TIMER_INTERVAL     			10
-#define BEACON_TIMER_AUTH_INTERVAL          20
+#define BEACON_TIMER_INTERVAL     			5
+#define BEACON_TIMER_AUTH_INTERVAL          10
 #define TEMP_LINK_TIMER                     30
 #define PENDING_AUTH_TIMEOUT         		60
-#define SPACE_AVAILABLE_TIMER               10
-#define REDUNDANT_PARENT_AVAILABLE_TIMER    20
-#define NO_SPACE_TIMER                      30
-#define CHALLENGE_SENT_TIMEOUT              20
+#define SPACE_AVAILABLE_TIMER               5
+#define REDUNDANT_PARENT_AVAILABLE_TIMER    10
+#define NO_SPACE_TIMER                      15
+#define CHALLENGE_SENT_TIMEOUT              5
+#define WAITING_FOR_ACK_TIMEOUT             5
 
 typedef  rimeaddr_t nodeid_t;
 
@@ -80,13 +81,13 @@ void akm_route_message();
 
 /* Placeholder */
 typedef struct certificate{
-	char dummy[256];
+	char dummy[32];
 } certificate_t;
 
 
 /* Placeholder */
 typedef struct session_key {
-	char dummy[128];
+	char dummy[32];
 } session_key_t;
 
 #define AKM_DISPATCH_BYTE 0x47 /*binary 0100111 -- reserved value in 6lowpan */
@@ -224,7 +225,7 @@ typedef struct akm_packet
 
 /* The list of neighbors for MARTA  -- we'll pass this in uding command line args*/
 #ifndef NODE_KEY_CACHE_SIZE
-#define NODE_KEY_CACHE_SIZE 3
+#define NODE_KEY_CACHE_SIZE 6
 #endif
 #define NELEMS(x)  (sizeof(x) / sizeof(x[0]))
 
@@ -249,6 +250,9 @@ typedef enum {
 } akm_timer_state_t;
 
 typedef struct akm_timer {
+#ifdef AKM_DEBUG
+	 char timername[32];
+#endif
 	 void (*f)(void *);
 	 void *ptr;
 	 int interval;
@@ -319,7 +323,7 @@ void free_slot(int slot);
 nodeid_t* grab_dodag_parent();
 
 nodeid_t * get_parent_id();
-void schedule_challenge_sent_timer(nodeid_t *target);
+void schedule_challenge_sent_timeout(nodeid_t *target);
 void sec_generate_session_key(nodeid_t* pnodeid);
 void send_break_security_association_reply(nodeid_t *nodeId, nodeid_t* requestingNodeid);
 void send_break_security_association(nodeid_t* target, bsa_continuation continuation, nodeid_t* pnodeid);

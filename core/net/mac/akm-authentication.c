@@ -60,9 +60,9 @@ bool_t set_authentication_state(nodeid_t* node_id,
 				if ( authState == AUTH_PENDING) {
 					schedule_pending_authentication_timer(node_id);
 				} else if (authState == OK_SENT_WAITING_FOR_ACK) {
-					schedule_pending_authentication_timer(node_id);
+					schedule_waiting_for_ack_timeout(node_id);
 				} else if ( authState == CHALLENGE_SENT_WAITING_FOR_OK) {
-					schedule_challenge_sent_timer(node_id);
+					// delay setting this timer.
 				} else if ( authState == AUTHENTICATED) {
 					stop_auth_timer(node_id);
 				}
@@ -114,7 +114,8 @@ void do_send_challenge(void* pvoid) {
 	set_authentication_state(target, CHALLENGE_SENT_WAITING_FOR_OK);
 	int i = find_authenticated_neighbor(target);
 	akm_timer_stop(&AKM_DATA.send_challenge_delay_timer[i]);
-
+	// schedule a timeout.
+	schedule_challenge_sent_timeout(target);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -286,7 +287,7 @@ void schedule_send_challenge_timer(int time, nodeid_t* target) {
 }
 
 /*---------------------------------------------------------------------------*/
-void handle_challenge_sent_timeout(void* pvoid) {
+void handle_authentication_timeout(void* pvoid) {
 
 	nodeid_t* node_id = (nodeid_t*) pvoid;
 	int i = find_authenticated_neighbor(node_id);
@@ -301,14 +302,26 @@ void handle_challenge_sent_timeout(void* pvoid) {
 	}
 }
 /*---------------------------------------------------------------------------*/
-void schedule_challenge_sent_timer(nodeid_t *target) {
+void schedule_challenge_sent_timeout(nodeid_t *target) {
 	int i = find_authenticated_neighbor(target);
 
 	if (i != -1) {
 		clock_time_t time = CHALLENGE_SENT_TIMEOUT ;
 		akm_timer_set(&AKM_DATA.auth_timer[i], time,
-				handle_challenge_sent_timeout, target);
+				handle_authentication_timeout, target);
 	}
+}
+
+/*-----------------------------------------------------------------------*/
+void schedule_waiting_for_ack_timeout(nodeid_t *target)
+{
+	int i = find_authenticated_neighbor(target);
+
+		if (i != -1) {
+			clock_time_t time = WAITING_FOR_ACK_TIMEOUT ;
+			akm_timer_set(&AKM_DATA.auth_timer[i], time,
+					handle_authentication_timeout, target);
+		}
 }
 
 /*----------------------------------------------------------------------*/
