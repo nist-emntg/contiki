@@ -17,13 +17,14 @@
 static clock_time_t get_beacon_interval();
 /*---------------------------------------------------------------------------*/
 void send_beacon() {
+	AKM_PRINTF("send_beacon\n");
 	AKM_MAC_OUTPUT.data.beacon.is_authenticated = AKM_DATA.is_authenticated;
 	akm_send(ALL_NEIGHBORS, BEACON,sizeof(AKM_MAC_OUTPUT.data.beacon));
 }
 
 void handle_beacon(beacon_t *pbeacon) {
 	nodeid_t* senderId = & AKM_DATA.sender_id;
-	AKM_PRINTF("akm_mac:handle_beacon");
+	AKM_PRINTF("handle_beacon");
 	AKM_PRINTADDR(senderId);
 	if (AKM_DATA.is_dodag_root) {
 		if (!is_neighbor_authenticated(senderId)) {
@@ -78,6 +79,7 @@ void reset_beacon( void ) {
 /*---------------------------------------------------------------------------*/
 
 void schedule_beacon(void) {
+	AKM_PRINTF("schedule_beacon %d\n",get_beacon_interval());
 	send_beacon();
 	akm_timer_set(&AKM_DATA.beacon_timer, get_beacon_interval(), handle_beacon_timer, NULL);
 }
