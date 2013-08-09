@@ -96,6 +96,7 @@ bool_t is_capacity_available() {
 			capacityCount++;
 		}
 	}
+	AKM_PRINTF("is_capacity_available: capacityCount = %d \n",capacityCount);
 	if (capacityCount > 1) {
 		return True;
 	} else {
@@ -239,8 +240,10 @@ bool_t has_authenticated_neighbors() {
 
 /*---------------------------------------------------------------------------*/
 bool_t is_redundant_parent_available() {
-	return get_dodag_root() != NULL
-			&& rpl_get_parent_count(get_dodag_root()) > 1;
+	bool_t redundantParentFlag = get_dodag_root() != NULL
+				&& rpl_get_parent_count(get_dodag_root()) > 1;
+	AKM_PRINTF("is_redundant_parent_available : %d\n",redundantParentFlag);
+	return redundantParentFlag;
 }
 
 /*---------------------------------------------------------------------------*/

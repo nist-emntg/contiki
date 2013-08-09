@@ -10,6 +10,7 @@
 // MARTA specific codes.
 #include <stdio.h>
 #include <string.h>
+#include <clock.h>
 
 #include "rpl.h"
 #include "net/mac/frame802154.h"
@@ -19,7 +20,7 @@
 #define PRINT_ERROR printf
 #define AKM_DEBUG 1
 #if AKM_DEBUG
-#define AKM_PRINTF printf("akm:") ; printf
+#define AKM_PRINTF printf("akm:%d: ",clock()) ; printf
 #define AKM_PRINTADDR(addr)\
 	if ( addr == NULL) {  \
 		printf ("NULL"); \
