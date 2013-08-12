@@ -751,7 +751,7 @@ rpl_select_redundant_parent(rpl_dag_t *dag)
     }
   }
 
-  return NULL;
+  return best;
 }
 /*------------------------------------------------------------------------*/
 void

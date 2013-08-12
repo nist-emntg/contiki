@@ -53,7 +53,7 @@ typedef enum {
 #define BEACON_TIMER_INTERVAL     			5
 #define BEACON_TIMER_AUTH_INTERVAL          10
 #define TEMP_LINK_TIMER                     30
-#define PENDING_AUTH_TIMEOUT         		60
+#define PENDING_AUTH_TIMEOUT         		30
 #define SPACE_AVAILABLE_TIMER               5
 #define REDUNDANT_PARENT_AVAILABLE_TIMER    10
 #define NO_SPACE_TIMER                      15
@@ -248,6 +248,10 @@ typedef enum {
 	TIMER_STATE_OFF,
 	TIMER_STATE_RUNNING
 } akm_timer_state_t;
+typedef enum {
+	TTYPE_CONTINUOUS,
+	TTYPE_ONESHOT
+}ttype_t;
 
 typedef struct akm_timer {
 #ifdef AKM_DEBUG
@@ -257,6 +261,7 @@ typedef struct akm_timer {
 	 void *ptr;
 	 int interval;
 	 int current_count;
+	 ttype_t ttype;
 	 akm_timer_state_t timer_state;
 } akm_timer_t;
 
@@ -277,13 +282,14 @@ typedef struct akm_data
 	akm_timer_t auth_timer[NODE_KEY_CACHE_SIZE];
 	akm_timer_t send_challenge_delay_timer[NODE_KEY_CACHE_SIZE];
 	akm_timer_t beacon_timer;
-	akm_timer_t temp_link_timer;
 
 	struct ctimer master_timer;
 
 	nodeid_t parent_cache[NODE_KEY_CACHE_SIZE]; /* Parent cache for "insert-me" */
 
 }akm_data_t;
+
+
 
 extern akm_data_t AKM_DATA;
 extern akm_mac_t AKM_MAC_OUTPUT;
@@ -345,7 +351,7 @@ bool_t is_nodeid_in_parent_list(nodeid_t* nodeid);
 char* get_auth_state_as_string(authentication_state authState);
 void schedule_beacon(void);
 void make_temporary_link_permanent();
-void akm_timer_set(akm_timer_t *c, clock_time_t t, void (*f)(void *), void *ptr) ;
+void akm_timer_set(akm_timer_t *c, clock_time_t t, void (*f)(void *), void *ptr, ttype_t ttype) ;
 void akm_timer_reset(akm_timer_t* c);
 void akm_timer_stop(akm_timer_t* c);
 #endif /* __AKM_MAC_H */
