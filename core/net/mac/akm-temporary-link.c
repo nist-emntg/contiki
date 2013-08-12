@@ -22,26 +22,49 @@ bool_t is_temp_link_available() {
 }
 
 /*----------------------------------------------------------------------*/
-void take_temporary_link(nodeid_t *node_id) {
-	memcpy(&AKM_DATA.temporaryLink,node_id, sizeof(AKM_DATA.temporaryLink));
+void take_temporary_link(nodeid_t *nodeId) {
+	AKM_PRINTF("take_temporary_link: ");
+	AKM_PRINTADDR(nodeId);
+	memcpy(&AKM_DATA.temporaryLink,nodeId, sizeof(AKM_DATA.temporaryLink));
+	schedule_temp_link_timer();
 }
 
 /*----------------------------------------------------------------------*/
 void make_temporary_link_permanent() {
 	set_authentication_state(&AKM_DATA.temporaryLink,AUTHENTICATED);
 	/* Null out the temp slot so it is available */
-	memset(&AKM_DATA.temporaryLink, sizeof(AKM_DATA.temporaryLink),0);
+	int i = find_authenticated_neighbor(&AKM_DATA.temporaryLink);
+	if ( i != -1 ) {
+		memset(&AKM_DATA.temporaryLink, sizeof(AKM_DATA.temporaryLink),0);
+	}
+	stop_temp_link_timer();
 }
 
 /*----------------------------------------------------------------------*/
 void restart_temporary_link_timer() {
-	akm_timer_reset(&AKM_DATA.temp_link_timer);
+	int i = find_authenticated_neighbor(&AKM_DATA.temporaryLink);
+	if (i != -1) {
+		akm_timer_reset(&AKM_DATA.auth_timer[i]);
+
+	}
 }
 
 /*---------------------------------------------------------------------------*/
 void schedule_temp_link_timer() {
+	AKM_PRINTF("schedule_temp_link_timer \n");
 	int time = TEMP_LINK_TIMER ;
-	akm_timer_set(&AKM_DATA.temp_link_timer ,time,drop_temporary_link,NULL);
+	int i = find_authenticated_neighbor(&AKM_DATA.temporaryLink);
+	if (i != -1) {
+		akm_timer_set(&AKM_DATA.auth_timer[i] ,time,drop_temporary_link,NULL,TTYPE_ONESHOT);
+	}
+}
+
+/*---------------------------------------------------------------------------*/
+void stop_temp_link_timer() {
+	int i = find_authenticated_neighbor(&AKM_DATA.temporaryLink);
+	if (i != -1) {
+		akm_timer_stop(&AKM_DATA.auth_timer[i]);
+	}
 }
 /*---------------------------------------------------------------------------*/
 void send_confirm_temporary_link(nodeid_t* target, nodeid_t* parent,
@@ -138,7 +161,7 @@ void schedule_pending_authentication_timer(nodeid_t *target)
 
 	if (i != -1) {
 		clock_time_t time = PENDING_AUTH_TIMEOUT ;
-		akm_timer_set(&AKM_DATA.auth_timer[i],time, handle_pending_auth_timeout,target );
+		akm_timer_set(&AKM_DATA.auth_timer[i],time, handle_pending_auth_timeout,target,TTYPE_ONESHOT);
 	}
 }
 

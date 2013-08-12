@@ -49,9 +49,7 @@ bool_t set_authentication_state(nodeid_t* node_id,
 		authentication_state authState) {
 	int i;
 	bool_t retval = False;
-	AKM_PRINTF(
-			"set_authentication_state : %s ",get_auth_state_as_string(authState))
-;
+	AKM_PRINTF("set_authentication_state : %s ",get_auth_state_as_string(authState));
 	AKM_PRINTADDR(node_id);
 	for (i = 0; i < NELEMS(AKM_DATA.authenticated_neighbors); i++) {
 		if (rimeaddr_cmp(&AKM_DATA.authenticated_neighbors[i].node_id,
@@ -65,6 +63,11 @@ bool_t set_authentication_state(nodeid_t* node_id,
 					// delay setting this timer.
 				} else if ( authState == AUTHENTICATED) {
 					stop_auth_timer(node_id);
+				}  else if ( authState == UNAUTHENTICATED ) {
+					free_slot(i);
+					if (!isAuthenticated()) {
+						reset_beacon();
+					}
 				}
 			}
 			AKM_DATA.authenticated_neighbors[i].state = authState;
@@ -91,6 +94,7 @@ get_session_key(nodeid_t *neighbor_id) {
 void do_send_challenge(void* pvoid) {
 	nodeid_t* target = (nodeid_t*) pvoid;
 	AKM_PRINTF("do_send_challenge ");
+	bool_t bSendChallenge = True;
 	AKM_PRINTADDR(target);
 	if (is_capacity_available()) {
 		AKM_MAC_OUTPUT.data.auth_challenge.status_code = AUTH_SPACE_AVAILABLE;
@@ -100,22 +104,27 @@ void do_send_challenge(void* pvoid) {
 			AKM_MAC_OUTPUT.data.auth_challenge.status_code =
 					AUTH_REDUNDANT_PARENT_AVAILABLE;
 		} else {
-			AKM_PRINTF("Temp link is not available - not sending challenge")
-;		}
+			AKM_PRINTF("Temp link is not available - not sending challenge");
+			bSendChallenge = False;
+		}
 	} else {
 		if (is_temp_link_available()) {
 			take_temporary_link(target);
 			AKM_MAC_OUTPUT.data.auth_challenge.status_code = AUTH_NO_SPACE;
 		} else {
 			AKM_PRINTF("Temp link is not available - not sending challenge");
+			bSendChallenge = False;
 		}
 	}
-	akm_send(target, AUTH_CHALLENGE,sizeof(AKM_MAC_OUTPUT.data.auth_challenge));
-	set_authentication_state(target, CHALLENGE_SENT_WAITING_FOR_OK);
-	int i = find_authenticated_neighbor(target);
-	akm_timer_stop(&AKM_DATA.send_challenge_delay_timer[i]);
-	// schedule a timeout.
-	schedule_challenge_sent_timeout(target);
+
+	if ( bSendChallenge ) {
+		akm_send(target, AUTH_CHALLENGE,sizeof(AKM_MAC_OUTPUT.data.auth_challenge));
+		set_authentication_state(target, CHALLENGE_SENT_WAITING_FOR_OK);
+		int i = find_authenticated_neighbor(target);
+		akm_timer_stop(&AKM_DATA.send_challenge_delay_timer[i]);
+		// schedule a timeout.
+		schedule_challenge_sent_timeout(target);
+	}
 }
 
 /*---------------------------------------------------------------------------*/
@@ -130,6 +139,8 @@ void send_challenge(nodeid_t* target) {
 	} else {
 		time = SPACE_AVAILABLE_TIMER + REDUNDANT_PARENT_AVAILABLE_TIMER
 				+ random_rand() % NO_SPACE_TIMER;
+		AKM_PRINTF("No space available delaying for %d \n ",time);
+
 	}
 	schedule_send_challenge_timer(time, target);
 
@@ -222,6 +233,9 @@ void handle_auth_ack( auth_ack_t* pauthAck) {
 	AKM_PRINTADDR(sender);
 
 	nodeid_t *pparent = &pauthAck->parent_id;
+	AKM_PRINTF("parent ID : ");
+	AKM_PRINTADDR(pparent);
+
 	if (is_nodeid_zero(pparent)) {
 		if (get_authentication_state(sender) == OK_SENT_WAITING_FOR_ACK) {
 			AKM_DATA.is_authenticated = True;
@@ -279,7 +293,7 @@ void schedule_send_challenge_timer(int time, nodeid_t* target) {
 	int i = find_authenticated_neighbor(target);
 	if (i != -1) {
 		akm_timer_set(&AKM_DATA.send_challenge_delay_timer[i], time,
-				do_send_challenge, target);
+				do_send_challenge, target,TTYPE_ONESHOT);
 	} else {
 		AKM_PRINTF("Cannot find authenticated neighbor ");
 		AKM_PRINTADDR(target);
@@ -291,7 +305,7 @@ void handle_authentication_timeout(void* pvoid) {
 
 	nodeid_t* node_id = (nodeid_t*) pvoid;
 	int i = find_authenticated_neighbor(node_id);
-
+	/* If we have not reached authenticated state then free the slot*/
 	if (i != -1 && AKM_DATA.authenticated_neighbors[i].state != AUTHENTICATED) {
 		if (rimeaddr_cmp(&AKM_DATA.temporaryLink,
 				&AKM_DATA.authenticated_neighbors[i].node_id)) {
@@ -308,7 +322,7 @@ void schedule_challenge_sent_timeout(nodeid_t *target) {
 	if (i != -1) {
 		clock_time_t time = CHALLENGE_SENT_TIMEOUT ;
 		akm_timer_set(&AKM_DATA.auth_timer[i], time,
-				handle_authentication_timeout, target);
+				handle_authentication_timeout, target,TTYPE_ONESHOT);
 	}
 }
 
@@ -320,7 +334,7 @@ void schedule_waiting_for_ack_timeout(nodeid_t *target)
 		if (i != -1) {
 			clock_time_t time = WAITING_FOR_ACK_TIMEOUT ;
 			akm_timer_set(&AKM_DATA.auth_timer[i], time,
-					handle_authentication_timeout, target);
+					handle_authentication_timeout, target,TTYPE_ONESHOT);
 		}
 }
 

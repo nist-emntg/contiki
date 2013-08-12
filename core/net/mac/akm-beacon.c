@@ -37,13 +37,20 @@ void handle_beacon(beacon_t *pbeacon) {
 			if (AKM_DATA.authenticated_neighbors[i].state != AUTHENTICATED &&
 					AKM_DATA.authenticated_neighbors[i].state != UNAUTHENTICATED) {
 				transientState = True;
+				break;
 			}
 		}
 
+		AKM_PRINTF("is_authenticated sender = %d is_part_of_dodag = %d\n",
+				pbeacon->is_authenticated,is_part_of_dodag());
 		if (is_part_of_dodag() && !transientState) {
 			if (get_authentication_state(senderId) == UNAUTHENTICATED &&
-					!pbeacon->is_authenticated){
+					(!pbeacon->is_authenticated || is_capacity_available())){
 				send_challenge(senderId);
+			} else if (get_authentication_state(senderId) == AUTHENTICATED &&
+					rimeaddr_cmp(&AKM_DATA.temporaryLink,senderId)){
+				nodeid_t* parent = get_parent_id();
+				send_auth_ack(senderId,parent);
 			}
 		}
 	}
@@ -66,7 +73,7 @@ static clock_time_t get_beacon_interval() {
 }
 /*--------------------------------------------------------------------------*/
 void reset_beacon( void ) {
-	AKM_PRINTF("reset_beacon");
+	AKM_PRINTF("reset_beacon\n");
 	if ( is_capacity_available () ) {
 		AKM_DATA.beacon_timer.timer_state = TIMER_STATE_RUNNING;
 		AKM_DATA.beacon_timer.current_count = 0;
@@ -81,6 +88,6 @@ void reset_beacon( void ) {
 void schedule_beacon(void) {
 	AKM_PRINTF("schedule_beacon %d\n",get_beacon_interval());
 	send_beacon();
-	akm_timer_set(&AKM_DATA.beacon_timer, get_beacon_interval(), handle_beacon_timer, NULL);
+	akm_timer_set(&AKM_DATA.beacon_timer, get_beacon_interval(), handle_beacon_timer, NULL,TTYPE_CONTINUOUS);
 }
 

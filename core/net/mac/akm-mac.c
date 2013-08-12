@@ -79,6 +79,7 @@ nodeid_t * get_parent_id() {
 		//struct uip_neighbor_addr* pneighbor = uip_neighbor_lookup(&neighbor->ipaddr);
 		return (nodeid_t*) &neighbor->lladdr;
 	} else {
+		AKM_PRINTF("get_parent_id: parent ID is null -- returning null");
 		return NULL;
 	}
 
@@ -92,7 +93,7 @@ bool_t is_capacity_available() {
 	int capacityCount = 0;
 	int i;
 	for (i = 0; i < NELEMS(AKM_DATA.authenticated_neighbors); i++) {
-		if (is_nodeid_zero(&AKM_DATA.authenticated_neighbors[i].node_id)) {
+		if (AKM_DATA.authenticated_neighbors[i].state == UNAUTHENTICATED) {
 			capacityCount++;
 		}
 	}
@@ -113,16 +114,8 @@ void free_slot(int slot) {
 /*---------------------------------------------------------------------------*/
 void free_security_association(nodeid_t* pnodeId) {
 	int i;
-	for (i = 0; i < NELEMS(AKM_DATA.authenticated_neighbors); i++) {
-		if (rimeaddr_cmp(pnodeId,
-				&AKM_DATA.authenticated_neighbors[i].node_id)) {
-			free_slot(i);
-			if (!isAuthenticated()) {
-				reset_beacon();
-			}
-			break;
-		}
-	}
+	set_authentication_state(pnodeId,UNAUTHENTICATED);
+
 }
 
 /*---------------------------------------------------------------------------*/
@@ -137,7 +130,8 @@ static void insert_id(int location, nodeid_t* pNodeId,
 	}
 }
 
-void akm_timer_set(akm_timer_t *c, clock_time_t t, void (*f)(void *), void *ptr) {
+void akm_timer_set(akm_timer_t *c, clock_time_t t, void (*f)(void *), void *ptr,ttype_t timerType) {
+	AKM_PRINTF("akm_timer_set : %s %uL \n",c->timername, t);
 	if (t == 0) {
 		AKM_PRINTF("ERROR!! invalid param t cannot be zero!\n")
 ;		return;
@@ -147,6 +141,7 @@ void akm_timer_set(akm_timer_t *c, clock_time_t t, void (*f)(void *), void *ptr)
 	c->current_count = 0;
 	c->interval = t;
 	c->timer_state = TIMER_STATE_RUNNING;
+	c->ttype = timerType;
 }
 
 void akm_timer_reset(akm_timer_t* c) {
@@ -171,7 +166,7 @@ void set_master_timer() {
 		sprintf(buf,"%s-%d","auth-timeout",i);
 		strcpy(AKM_DATA.auth_timer[i].timername,buf);
 	}
-	strcpy(AKM_DATA.temp_link_timer.timername,"temp-link-timeout");
+
 #endif
 
 }
@@ -179,12 +174,17 @@ void set_master_timer() {
 static void fire_timer(akm_timer_t* pakmTimer) {
 	if (pakmTimer->timer_state == TIMER_STATE_RUNNING) {
 		pakmTimer->current_count = (pakmTimer->current_count + 1)
-				% pakmTimer->interval;
+						% pakmTimer->interval;
 		AKM_PRINTF("timer:%s count %d\n",pakmTimer->timername,pakmTimer->current_count);
 		if (pakmTimer->current_count == 0) {
 			(*pakmTimer->f)(pakmTimer->ptr);
+			if ( pakmTimer->ttype == TTYPE_ONESHOT) {
+				pakmTimer->timer_state = TIMER_STATE_OFF;
+			}
 		}
+
 	}
+
 }
 static void check_and_restart(void *ptr) {
 	AKM_PRINTF("check_and_restart master timer\n");
@@ -196,7 +196,7 @@ static void check_and_restart(void *ptr) {
 	for (i = 0; i < NELEMS(AKM_DATA.auth_timer); i++) {
 		fire_timer(&AKM_DATA.auth_timer[i]);
 	}
-	fire_timer(&AKM_DATA.temp_link_timer);
+
 	/* schedule it again */
 	if ( ctimer_expired(&AKM_DATA.master_timer)) {
 		ctimer_restart(&AKM_DATA.master_timer);
