@@ -21,7 +21,7 @@
 
 /* portion of this code was borrowed from the Cooja driver
  * authors:
- * - Ranganathan Mudumbai <mranga@nist.gov>
+ * - M. Ranganathan  <mranga@nist.gov>
  * - Tony Cheneau <tony.cheneau@nist.gov>
  */
 
@@ -36,6 +36,7 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <time.h>
+#include <signal.h>
 
 
 #include "contiki.h"
@@ -127,6 +128,8 @@ struct Packet packet_buf;
 PROCESS(udpradio, "udpradio process");
 static int radio_read(void *buf, unsigned short bufsize);
 void* radio_thread(void *args);
+typedef void sigfunc(int);
+sigfunc *sigcatcher;
 
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(udpradio, ev, data) {
@@ -150,6 +153,11 @@ PROCESS_THREAD(udpradio, ev, data) {
 	}
 PROCESS_END();
 
+}
+
+/*----------------------------------------------------------------------------*/
+void default_signal_catcher(int signo) {
+	PRINTF("Caught a signal %d - exitting\n",signo);
 }
 /*----------------------------------------------------------------------------*/
 int check_and_parse(char * packet, int size, int * offset, int * packet_size) {
@@ -244,7 +252,14 @@ void stop_simulation(void) {
 
 	sendto(sockfd, buffer, sizeof(buffer), 0, &emuaddr, emuaddr_len);
 	PRINTF("node is stopping");
+	(*sigcatcher)(EXIT_FAILURE);
 	exit(EXIT_FAILURE);
+}
+
+/*----------------------------------------------------------------------------*/
+void set_sighandler(sigfunc* sf) {
+	sigcatcher = sf;
+	signal(SIGINT,sf);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -290,7 +305,7 @@ while (1) {
 			PRINTF("transmission delay is more than a second\n");
 			stop_simulation();
 		}
-
+/*
 		if ((PHY_HEADER + real_packet_size) * TRANSFER_TIME_PER_BYTE
 				+ CCA_DURATION
 				+ COMPUTATION_DURATION
@@ -302,6 +317,7 @@ while (1) {
 				   + CCA_DURATION + COMPUTATION_DURATION);
 			stop_simulation();
 		}
+*/
 		break;
 	}
 	case INCOMING_PACKET:
@@ -440,9 +456,13 @@ static int init(void) {
 	}
 	pthread_detach(reader);
 	process_start(&udpradio, NULL);
+	sigcatcher = default_signal_catcher;
+	/* Register signal catcher for when a node is killed manually */
+	signal(SIGINT,sigcatcher);
 
 	return 1;
 }
+
 /*---------------------------------------------------------------------------*/
 static int prepare_packet(const void *data, unsigned short len) {
 PRINTF("udpradio: prepare_packet %d\n", len);
