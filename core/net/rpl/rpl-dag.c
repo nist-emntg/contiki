@@ -677,6 +677,11 @@ rpl_select_parent(rpl_dag_t *dag)
 }
 
 /************************************************************************/
+rpl_parent_t *rpl_get_first_parent(rpl_dag_t* dag) {
+	return (rpl_parent_t*) list_head(dag->parents);
+}
+
+/************************************************************************/
 rpl_parent_t *
 rpl_select_redundant_parent(rpl_dag_t *dag)
 {
@@ -709,6 +714,7 @@ rpl_remove_parent(rpl_dag_t *dag, rpl_parent_t *parent)
 
   list_remove(dag->parents, parent);
   memb_free(&parent_memb, parent);
+
 }
 /************************************************************************/
 void

@@ -276,16 +276,19 @@ typedef struct akm_data
 	nodeid_t sender_id;
 	nodeid_t fragment_sender;
 	uint16_t remaining_messagelen;
+	// Node ID of temp link (if link is taken).
 	nodeid_t temporaryLink;
-	authenticated_neighbor_t authenticated_neighbors[NODE_KEY_CACHE_SIZE];
+	// One added slot for temporary link.
+	authenticated_neighbor_t authenticated_neighbors[NODE_KEY_CACHE_SIZE+1];
+	akm_timer_t auth_timer[NODE_KEY_CACHE_SIZE+1];
+	akm_timer_t send_challenge_delay_timer[NODE_KEY_CACHE_SIZE+1];
+	nodeid_t parent_cache[NODE_KEY_CACHE_SIZE+1]; /* Parent cache for "insert-me" */
 
-	akm_timer_t auth_timer[NODE_KEY_CACHE_SIZE];
-	akm_timer_t send_challenge_delay_timer[NODE_KEY_CACHE_SIZE];
+
 	akm_timer_t beacon_timer;
 
 	struct ctimer master_timer;
 
-	nodeid_t parent_cache[NODE_KEY_CACHE_SIZE]; /* Parent cache for "insert-me" */
 
 }akm_data_t;
 
@@ -354,4 +357,16 @@ void make_temporary_link_permanent();
 void akm_timer_set(akm_timer_t *c, clock_time_t t, void (*f)(void *), void *ptr, ttype_t ttype) ;
 void akm_timer_reset(akm_timer_t* c);
 void akm_timer_stop(akm_timer_t* c);
+rpl_parent_t *rpl_get_first_parent(rpl_dag_t* dag) ;
+
+void schedule_waiting_for_ack_timeout(nodeid_t *target);
+
+
+#ifdef AKM_DEBUG
+extern void set_sighandler(void (*handler)(int) );
+#define SET_SIGHANDLER set_sighandler
+#else
+#define SET_SIGHANDLER
+#endif
+
 #endif /* __AKM_MAC_H */

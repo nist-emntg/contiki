@@ -36,7 +36,6 @@ akm_mac_t AKM_MAC_INPUT;
 
 #define MAX_TRANSMIT_SIZE (PACKETBUF_SIZE - PACKETBUF_HDR_SIZE)
 
-
 /*--------------------------------------------------------------------------*/
 void internal_error(char* error_message) {
 	PRINT_ERROR(error_message);
@@ -44,8 +43,7 @@ void internal_error(char* error_message) {
 /*--------------------------------------------------------------------------*/
 void akm_set_dodag_root(rpl_dag_t *pdag) {
 	AKM_PRINTF("set_dodag_root: setting dodag root \n")
-;
-	AKM_DATA.is_dodag_root = 1;
+;	AKM_DATA.is_dodag_root = 1;
 	AKM_DATA.is_authenticated = 1;
 }
 
@@ -79,8 +77,8 @@ nodeid_t * get_parent_id() {
 		//struct uip_neighbor_addr* pneighbor = uip_neighbor_lookup(&neighbor->ipaddr);
 		return (nodeid_t*) &neighbor->lladdr;
 	} else {
-		AKM_PRINTF("get_parent_id: parent ID is null -- returning null");
-		return NULL;
+		AKM_PRINTF("get_parent_id: parent ID is null -- returning null")
+;		return NULL;
 	}
 
 }
@@ -97,7 +95,8 @@ bool_t is_capacity_available() {
 			capacityCount++;
 		}
 	}
-	AKM_PRINTF("is_capacity_available: capacityCount = %d \n",capacityCount);
+	AKM_PRINTF("is_capacity_available: capacityCount = %d \n",capacityCount)
+;	/* Note that ONE slot is reserved */
 	if (capacityCount > 1) {
 		return True;
 	} else {
@@ -113,9 +112,7 @@ void free_slot(int slot) {
 
 /*---------------------------------------------------------------------------*/
 void free_security_association(nodeid_t* pnodeId) {
-	int i;
-	set_authentication_state(pnodeId,UNAUTHENTICATED);
-
+	set_authentication_state(pnodeId, UNAUTHENTICATED);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -130,11 +127,13 @@ static void insert_id(int location, nodeid_t* pNodeId,
 	}
 }
 
-void akm_timer_set(akm_timer_t *c, clock_time_t t, void (*f)(void *), void *ptr,ttype_t timerType) {
-	AKM_PRINTF("akm_timer_set : %s %uL \n",c->timername, t);
-	if (t == 0) {
+void akm_timer_set(akm_timer_t *c, clock_time_t t, void (*f)(void *), void *ptr,
+		ttype_t timerType) {
+	AKM_PRINTF("akm_timer_set : %s %u \n",c->timername, t)
+;	if (t == 0) {
 		AKM_PRINTF("ERROR!! invalid param t cannot be zero!\n")
-;		return;
+;
+		return;
 	}
 	c->f = f;
 	c->ptr = ptr;
@@ -156,15 +155,15 @@ void set_master_timer() {
 	ctimer_set(&AKM_DATA.master_timer, CLOCK_SECOND, check_and_restart, NULL);
 #ifdef AKM_DEBUG
 	int i;
-	strcpy(AKM_DATA.beacon_timer.timername,"beacon");
+	strcpy(AKM_DATA.beacon_timer.timername, "beacon");
 	char buf[32];
 	for (i = 0; i < NELEMS(AKM_DATA.send_challenge_delay_timer); i++) {
-		sprintf(buf,"%s-%d","challenge-delay",i);
-		strcpy(AKM_DATA.send_challenge_delay_timer[i].timername,buf);
+		sprintf(buf, "%s-%d", "challenge-delay", i);
+		strcpy(AKM_DATA.send_challenge_delay_timer[i].timername, buf);
 	}
 	for (i = 0; i < NELEMS(AKM_DATA.auth_timer); i++) {
-		sprintf(buf,"%s-%d","auth-timeout",i);
-		strcpy(AKM_DATA.auth_timer[i].timername,buf);
+		sprintf(buf, "%s-%d", "auth-timeout", i);
+		strcpy(AKM_DATA.auth_timer[i].timername, buf);
 	}
 
 #endif
@@ -174,11 +173,12 @@ void set_master_timer() {
 static void fire_timer(akm_timer_t* pakmTimer) {
 	if (pakmTimer->timer_state == TIMER_STATE_RUNNING) {
 		pakmTimer->current_count = (pakmTimer->current_count + 1)
-						% pakmTimer->interval;
-		AKM_PRINTF("timer:%s count %d\n",pakmTimer->timername,pakmTimer->current_count);
-		if (pakmTimer->current_count == 0) {
+				% pakmTimer->interval;
+		AKM_PRINTF(
+				"timer:%s count %d\n",pakmTimer->timername,pakmTimer->current_count)
+;		if (pakmTimer->current_count == 0) {
 			(*pakmTimer->f)(pakmTimer->ptr);
-			if ( pakmTimer->ttype == TTYPE_ONESHOT) {
+			if (pakmTimer->ttype == TTYPE_ONESHOT) {
 				pakmTimer->timer_state = TIMER_STATE_OFF;
 			}
 		}
@@ -187,8 +187,8 @@ static void fire_timer(akm_timer_t* pakmTimer) {
 
 }
 static void check_and_restart(void *ptr) {
-	AKM_PRINTF("check_and_restart master timer\n");
-	int i;
+	AKM_PRINTF("check_and_restart master timer\n")
+;	int i;
 	fire_timer(&AKM_DATA.beacon_timer);
 	for (i = 0; i < NELEMS(AKM_DATA.send_challenge_delay_timer); i++) {
 		fire_timer(&AKM_DATA.send_challenge_delay_timer[i]);
@@ -198,7 +198,7 @@ static void check_and_restart(void *ptr) {
 	}
 
 	/* schedule it again */
-	if ( ctimer_expired(&AKM_DATA.master_timer)) {
+	if (ctimer_expired(&AKM_DATA.master_timer)) {
 		ctimer_restart(&AKM_DATA.master_timer);
 	} else {
 		ctimer_reset(&AKM_DATA.master_timer);
@@ -210,11 +210,10 @@ void add_authenticated_neighbor(nodeid_t* pnodeId, session_key_t* sessionKey,
 
 	AKM_PRINTF(
 			"add_authenticated_neighbor : authState =  %s ",get_auth_state_as_string(authState))
-;
-	AKM_PRINTADDR(pnodeId);
+;	AKM_PRINTADDR(pnodeId);
 	int i = 0;
 	for (i = 0; i < NELEMS(AKM_DATA.authenticated_neighbors); i++) {
-		if (is_nodeid_zero(&AKM_DATA.authenticated_neighbors[i].node_id)) {
+		if (AKM_DATA.authenticated_neighbors[i].state == UNAUTHENTICATED) {
 			insert_id(i, pnodeId, sessionKey, authState);
 			set_authentication_state(pnodeId, authState);
 			break;
@@ -256,9 +255,9 @@ bool_t has_authenticated_neighbors() {
 /*---------------------------------------------------------------------------*/
 bool_t is_redundant_parent_available() {
 	bool_t redundantParentFlag = get_dodag_root() != NULL
-				&& rpl_get_parent_count(get_dodag_root()) > 1;
-	AKM_PRINTF("is_redundant_parent_available : %d\n",redundantParentFlag);
-	return redundantParentFlag;
+			&& rpl_get_parent_count(get_dodag_root()) > 1;
+	AKM_PRINTF("is_redundant_parent_available : %d\n",redundantParentFlag)
+;	return redundantParentFlag;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -295,7 +294,8 @@ void akm_send(nodeid_t *targetId, akm_op_t command, int size) {
 	} else {
 		/* Message needs to be fragmented */
 		AKM_PRINTF("Fragmentation header\n")
-;		int startbuf = 0;
+;
+		int startbuf = 0;
 		int chunksize = MAX_TRANSMIT_SIZE - sizeof(AKM_MAC_OUTPUT.mac_header);
 
 		packetbuf_set_addr(PACKETBUF_ADDR_RECEIVER, targetId);
@@ -308,10 +308,10 @@ void akm_send(nodeid_t *targetId, akm_op_t command, int size) {
 		AKM_MAC_OUTPUT.mac_header.frag.frag1.id = fid;
 		AKM_MAC_OUTPUT.mac_header.frag.frag1.fraglength = chunksize;
 		AKM_MAC_OUTPUT.mac_header.frag.frag1.total_data_length = size;
-		/* Send out a burst of packets. Do we want to wait between sends?*/
-		AKM_PRINTF("FRAG1 header fragid = %d fraglength = %d total_data_length = %d\n",
-				fid,chunksize,size);
-		packetbuf_copyfrom((char*) &AKM_MAC_OUTPUT, MAX_TRANSMIT_SIZE);
+		/* Send out a burst of packets. Do we want to wait between sends?*/AKM_PRINTF(
+				"FRAG1 header fragid = %d fraglength = %d total_data_length = %d\n",
+				fid,chunksize,size)
+;		packetbuf_copyfrom((char*) &AKM_MAC_OUTPUT, MAX_TRANSMIT_SIZE);
 		NETSTACK_CONF_FRAMER.create();
 		sizeToSend = packetbuf_totlen();
 		NETSTACK_RADIO.prepare(packetbuf_hdrptr(), sizeToSend);
@@ -322,24 +322,30 @@ void akm_send(nodeid_t *targetId, akm_op_t command, int size) {
 
 		do {
 
-			chunksize = (bytes_to_copy < MAX_TRANSMIT_SIZE - sizeof(AKM_MAC_OUTPUT.mac_header) ?
-						 bytes_to_copy : MAX_TRANSMIT_SIZE - sizeof(AKM_MAC_OUTPUT.mac_header));
+			chunksize = (
+					bytes_to_copy
+							< MAX_TRANSMIT_SIZE
+									- sizeof(AKM_MAC_OUTPUT.mac_header) ?
+							bytes_to_copy :
+							MAX_TRANSMIT_SIZE
+									- sizeof(AKM_MAC_OUTPUT.mac_header));
 			AKM_MAC_OUTPUT.mac_header.protocol_id = AKM_DISPATCH_BYTE;
 			AKM_MAC_OUTPUT.mac_header.ftype = FRAGN;
 			AKM_MAC_OUTPUT.mac_header.frag.fragn.id = fid;
 			AKM_MAC_OUTPUT.mac_header.frag.fragn.offset = startbuf;
 			AKM_MAC_OUTPUT.mac_header.frag.fragn.fraglength = chunksize;
 			void* dataptr = packetbuf_dataptr();
-			packetbuf_set_datalen(chunksize + sizeof(AKM_MAC_OUTPUT.mac_header));
+			packetbuf_set_datalen(
+					chunksize + sizeof(AKM_MAC_OUTPUT.mac_header));
 			AKM_PRINTF("FRAGN header fragid = %d fraglength = %d offset = %d\n",
-							fid,chunksize,startbuf);
-
+			fid,chunksize,startbuf)
+;
 			/* Copy the mac header in first */
-			memcpy(dataptr, (char*) &AKM_MAC_OUTPUT , sizeof(AKM_MAC_OUTPUT.mac_header));
+			memcpy(dataptr, (char*) &AKM_MAC_OUTPUT,
+					sizeof(AKM_MAC_OUTPUT.mac_header));
 			/* copy the data part in next*/
 			dataptr += sizeof(AKM_MAC_OUTPUT.mac_header);
-			memcpy(dataptr,(char*) &AKM_MAC_OUTPUT.data + startbuf, chunksize);
-
+			memcpy(dataptr, (char*) &AKM_MAC_OUTPUT.data + startbuf, chunksize);
 
 			packetbuf_set_addr(PACKETBUF_ADDR_RECEIVER, targetId);
 			packetbuf_set_addr(PACKETBUF_ADDR_SENDER, getNodeId());
@@ -407,31 +413,29 @@ bool_t isAuthenticationInPending() {
 void akm_route_message() {
 	akm_mac_t* pakm_mac = &AKM_MAC_INPUT;
 
-	rimeaddr_copy(&AKM_DATA.sender_id, (nodeid_t*) packetbuf_addr(PACKETBUF_ADDR_SENDER));
+	rimeaddr_copy(&AKM_DATA.sender_id,
+			(nodeid_t*) packetbuf_addr(PACKETBUF_ADDR_SENDER));
 	akm_op_t op = pakm_mac->mac_header.command;
 	nodeid_t* receiver_id = (nodeid_t*) packetbuf_addr(PACKETBUF_ADDR_RECEIVER);
 
 	AKM_PRINTF("sender_id : ")
-;
-	AKM_PRINTADDR(&AKM_DATA.sender_id);
+;	AKM_PRINTADDR(&AKM_DATA.sender_id);
 
 	AKM_PRINTF("receiver_id : ")
-;
-	AKM_PRINTADDR(receiver_id);
+;	AKM_PRINTADDR(receiver_id);
 	AKM_PRINTF("my_nodeid ")
-;
-	AKM_PRINTADDR(getNodeId());
+;	AKM_PRINTADDR(getNodeId());
 
 	if (!rimeaddr_cmp(receiver_id, ALL_NEIGHBORS)
 			&& !rimeaddr_cmp(receiver_id, getNodeId())) {
 		AKM_PRINTF("akm_route_message: Message is not for me.\n")
-;		return;
+;
+		return;
 	}
 
 	if (rimeaddr_cmp(&AKM_DATA.sender_id, getNodeId())) {
 		AKM_PRINTF("akm_route_message: Message originated by me -- dropping\n")
-;
-		return;
+;		return;
 	}
 
 	switch (op) {
@@ -439,14 +443,13 @@ void akm_route_message() {
 		handle_beacon(&pakm_mac->data.beacon);
 		break;
 	case AUTH_CHALLENGE:
-		handle_auth_challenge( &pakm_mac->data.auth_challenge);
+		handle_auth_challenge(&pakm_mac->data.auth_challenge);
 		break;
 	case AUTH_CHALLENGE_RESPONSE:
-		handle_auth_challenge_response(
-				&pakm_mac->data.auth_challenge_response);
+		handle_auth_challenge_response(&pakm_mac->data.auth_challenge_response);
 		break;
 	case AUTH_ACK:
-		handle_auth_ack( &pakm_mac->data.auth_ack);
+		handle_auth_ack(&pakm_mac->data.auth_ack);
 		break;
 
 	case BREAK_SECURITY_ASSOCIATION_REQUEST:
@@ -458,11 +461,13 @@ void akm_route_message() {
 		break;
 
 	case CONFIRM_TEMPORARY_LINK_REQUEST:
-		handle_confirm_temporary_link(&pakm_mac->data.confirm_temp_link_request);
+		handle_confirm_temporary_link(
+				&pakm_mac->data.confirm_temp_link_request);
 		break;
 
 	case CONFIRM_TEMPORARY_LINK_RESPONSE:
-		handle_confirm_temporary_link_response(&pakm_mac->data.confirm_temp_link_response);
+		handle_confirm_temporary_link_response(
+				&pakm_mac->data.confirm_temp_link_response);
 		break;
 
 	default:
@@ -473,7 +478,8 @@ void akm_route_message() {
 /*---------------------------------------------------------------------------*/
 static void init(void) {
 	AKM_PRINTF("akm-mac : init()")
-;	AKM_PRINTADDR(getNodeId());
+;
+	AKM_PRINTADDR(getNodeId());
 
 	AKM_MAC_OUTPUT.mac_header.protocol_id = AKM_DISPATCH_BYTE;
 	/*zero out the global data block */
@@ -510,10 +516,18 @@ char* get_auth_state_as_string(authentication_state auth_state) {
 
 /*---------------------------------------------------------------------------*/
 void remove_parent(nodeid_t* parent_nodeid) {
+	AKM_PRINTF("remove_parent: ")
+;	AKM_PRINTADDR(parent_nodeid);
 	uip_ds6_nbr_t *nbr = uip_ds6_nbr_ll_lookup((uip_lladdr_t*) parent_nodeid);
-	rpl_parent_t* parent = rpl_find_parent(get_dodag_root(), &nbr->ipaddr);
-	if (parent != NULL) {
-		rpl_remove_parent(get_dodag_root(), parent);
+	if (nbr != NULL) {
+		rpl_parent_t* parent = rpl_find_parent(get_dodag_root(), &nbr->ipaddr);
+		if (parent != NULL) {
+			rpl_remove_parent(get_dodag_root(), parent);
+		} else {
+			AKM_PRINTF("Could not find parent.\n")
+;		}
+	} else {
+		AKM_PRINTF("Could not find in parent cache.\n");
 	}
 }
 /*---------------------------------------------------------------------------*/
@@ -547,14 +561,14 @@ void akm_packet_input(void) {
 
 	AKM_PRINTF(
 			"akm_mac::datalen = %d sizeof buffer = %ul  protocol_id = %x \n",
-					packetbuf_datalen(),sizeof(AKM_MAC_INPUT),
-					pakm_mac->mac_header.protocol_id);
-
+			packetbuf_datalen(),sizeof(AKM_MAC_INPUT),
+			pakm_mac->mac_header.protocol_id)
+;
 	if (pakm_mac->mac_header.protocol_id == AKM_DISPATCH_BYTE) {
 		if (pakm_mac->mac_header.ftype == UNFRAGMENTED) {
 			if (packetbuf_datalen() > sizeof(AKM_MAC_INPUT)) {
-				AKM_PRINTF("ERROR! size in packetbuf is too big.\n");
-
+				AKM_PRINTF("ERROR! size in packetbuf is too big.\n")
+;
 			} else {
 				memcpy(&AKM_MAC_INPUT, pakm_mac, packetbuf_datalen());
 				akm_route_message();
@@ -585,7 +599,7 @@ void akm_packet_input(void) {
 							&pakm_mac ->data ,
 							pakm_mac->mac_header.frag.fragn.fraglength);
 					AKM_DATA.remaining_messagelen -=
-							pakm_mac->mac_header.frag.fragn.fraglength;
+					pakm_mac->mac_header.frag.fragn.fraglength;
 					AKM_PRINTF("input_msglen = %d\n",AKM_DATA.remaining_messagelen);
 				}
 				if (AKM_DATA.remaining_messagelen == 0) {
@@ -604,6 +618,30 @@ void akm_packet_input(void) {
 		packetbuf_clear();
 	}
 }
+/*---------------------------------------------------------------------------*/
+#ifdef AKM_DEBUG
+static void akm_sighandler(int signo) {
+	int i;
+	for (i = 0; i < NELEMS(AKM_DATA.authenticated_neighbors); i++) {
+		AKM_PRINTF(
+				"%d state = %s Neighbor address = ",i,get_auth_state_as_string(AKM_DATA.authenticated_neighbors[i].state))
+;		AKM_PRINTADDR(&AKM_DATA.authenticated_neighbors[i]);
+	}
+	if (get_dodag_root() != NULL) {
+		AKM_PRINTF("parents = {");
+		rpl_parent_t* parent = rpl_get_first_parent(get_dodag_root());
+		while (parent != NULL) {
+			uip_ds6_nbr_t * neighbor = uip_ds6_nbr_lookup(&parent->addr);
+			//struct uip_neighbor_addr* pneighbor = uip_neighbor_lookup(&neighbor->ipaddr);
+			if (neighbor != NULL ) {
+				AKM_PRINTADDR((nodeid_t* ) &neighbor->lladdr);
+			}
+			parent = parent->next;
+		}
+		AKM_PRINTF("}\n");
+	}
+}
+#endif
 /*---------------------------------------------------------------------------*/
 static int on(void) {
 	return NETSTACK_RDC.on();
