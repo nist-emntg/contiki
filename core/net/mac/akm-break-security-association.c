@@ -12,26 +12,22 @@
 #include  "mac/akm-mac.h"
 #include  "packetbuf.h"
 #include "clock.h"
-#ifdef AKM_DEBUG
-#define AKM_PRINT_BSACONTINUATION print_break_security_association_continuation
-#else
-#define AKM_PRINT_BSACONTINUATION
-#endif
+
 
 /*-----------------------------------------------------------------------*/
 #ifdef AKM_DEBUG
 
-void print_break_security_association_continuation(
+char* get_break_security_association_continuation_as_string(
 		bsa_continuation continuation) {
 	switch (continuation) {
 	case BSA_CONTINUATION_NONE:
-		AKM_PRINTF(" BSA_CONTINUATION_NONE\n");
+		return " BSA_CONTINUATION_NONE";
 		break;
 	case BSA_CONTINUATION_INSERT_NODE :
-		AKM_PRINTF(" BSA_CONTINUATION_INSERT_NODE\n");
+		return " BSA_CONTINUATION_INSERT_NODE";
 		break;
 	default:
-		AKM_PRINTF("INTERNAL ERROR \n");
+		return "INTERNAL ERROR -- unknown option";
 	}
 }
 
@@ -70,6 +66,8 @@ void handle_break_security_association(
  */
 void handle_break_security_association_reply( break_security_association_reply_t* msg) {
 	nodeid_t* sender = &AKM_DATA.sender_id;
+	AKM_PRINTF("handle_break_security_association_reply:");
+	AKM_PRINTADDR(sender);
 	if (msg->status_code == BSA_OK) {
 		/* Free the security association corresponding to the sender */
 		free_security_association(sender);
@@ -85,9 +83,9 @@ void handle_break_security_association_reply( break_security_association_reply_t
 
 /*----------------------------------------------------------------------*/
 void send_break_security_association(nodeid_t* target, bsa_continuation continuation, nodeid_t* pnodeid) {
-	AKM_PRINTF("send_break_security_association : target = ");
+	AKM_PRINTF("send_break_security_association : continuaiton = %s target = ",
+			get_break_security_association_continuation_as_string(continuation));
 	AKM_PRINTADDR(target);
-	AKM_PRINT_BSACONTINUATION(continuation);
 	AKM_MAC_OUTPUT.data.bsa_request.continuation = continuation;
 	if ( pnodeid != NULL ) {
 		rimeaddr_copy(&AKM_MAC_OUTPUT.data.bsa_request.insert_node_requester,pnodeid);
@@ -102,6 +100,10 @@ void send_break_security_association(nodeid_t* target, bsa_continuation continua
 /*----------------------------------------------------------------------*/
 void send_break_security_association_reply(nodeid_t *nodeId,
 		nodeid_t * requestingNodeId) {
+	AKM_PRINTF("send_break_security_assocition_reply: target ");
+	AKM_PRINTADDR(nodeId);
+	AKM_PRINTF(" requestingNodeId = ");
+	AKM_PRINTADDR(requestingNodeId);
 	AKM_MAC_OUTPUT.data.bsa_reply.status_code = BSA_OK;
 	rimeaddr_copy(&AKM_MAC_OUTPUT.data.bsa_reply.requesting_node_id,requestingNodeId);
 	akm_send(nodeId,BREAK_SECURITY_ASSOCIATION_REPLY,sizeof(AKM_MAC_OUTPUT.data.bsa_reply));

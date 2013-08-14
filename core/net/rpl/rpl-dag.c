@@ -165,20 +165,12 @@ remove_parents(rpl_dag_t *dag, rpl_rank_t minimum_rank)
   PRINTF("RPL: Removing parents (minimum rank %u)\n",
 	minimum_rank);
 
-<<<<<<< HEAD
   p = nbr_table_head(rpl_parents);
   while(p != NULL) {
     if(dag == p->dag && p->rank >= minimum_rank) {
       rpl_remove_parent(p);
-=======
-  for(p = list_head(dag->parents); p != NULL; p = p2) {
-    p2 = p->next;
-    if(p->rank >= minimum_rank) {
-      rpl_remove_parent(dag, p);
       uip_ds6_nbr_t * nbr = uip_ds6_nbr_lookup(&p->addr);
       free_security_association((nodeid_t*) &nbr->lladdr);
-
->>>>>>> Clean compile of MARTA on contiki.
     }
     p = nbr_table_next(rpl_parents, p);
   }
@@ -380,12 +372,7 @@ check_prefix(rpl_prefix_t *last_prefix, rpl_prefix_t *new_prefix)
     }
   }
 }
-<<<<<<< HEAD
 /*---------------------------------------------------------------------------*/
-=======
-
-/************************************************************************/
->>>>>>> Clean compile of MARTA on contiki.
 int
 rpl_set_prefix(rpl_dag_t *dag, uip_ipaddr_t *prefix, unsigned len)
 {
@@ -731,6 +718,10 @@ rpl_select_parent(rpl_dag_t *dag)
   }
 
   return best;
+}
+/*---------------------------------------------------------------------------*/
+rpl_parent_t *rpl_get_first_parent(rpl_dag_t* dag) {
+	return (rpl_parent_t*) list_head(dag->parents);
 }
 /*---------------------------------------------------------------------------*/
 rpl_parent_t *

@@ -16,6 +16,8 @@
 
 /*---------------------------------------------------------------------------*/
 void insert_parent(int slot, nodeid_t* parent) {
+	AKM_PRINTF("insert_parent: slot %d parent =  " ,slot);
+	AKM_PRINTADDR(parent);
 	rimeaddr_copy(&AKM_DATA.parent_cache[slot], parent);
 }
 /*--------------------------------------------------------------------------*/
@@ -75,6 +77,9 @@ bool_t set_authentication_state(nodeid_t* node_id,
 			break;
 		}
 	}
+	if ( ! retval ) {
+		AKM_PRINTF("set_authention_state: node not found \n");
+	}
 	return retval;
 }
 /*---------------------------------------------------------------------------*/
@@ -93,9 +98,11 @@ get_session_key(nodeid_t *neighbor_id) {
 /*---------------------------------------------------------------------------*/
 void do_send_challenge(void* pvoid) {
 	nodeid_t* target = (nodeid_t*) pvoid;
-	AKM_PRINTF("do_send_challenge ");
-	bool_t bSendChallenge = True;
+
+	AKM_PRINTF("do_send_challenge: target = ");
 	AKM_PRINTADDR(target);
+
+	bool_t bSendChallenge = True;
 	if (is_capacity_available()) {
 		AKM_MAC_OUTPUT.data.auth_challenge.status_code = AUTH_SPACE_AVAILABLE;
 	} else if (is_redundant_parent_available()) {
@@ -131,6 +138,7 @@ void do_send_challenge(void* pvoid) {
 void send_challenge(nodeid_t* target) {
 	int time;
 	add_authenticated_neighbor(target, NULL, CHALLENGE_SENT_WAITING_FOR_OK);
+
 	if (is_capacity_available()) {
 		time = random_rand() % SPACE_AVAILABLE_TIMER;
 	} else if (AKM_DATA.is_authenticated && is_redundant_parent_available()) {
@@ -140,8 +148,8 @@ void send_challenge(nodeid_t* target) {
 		time = SPACE_AVAILABLE_TIMER + REDUNDANT_PARENT_AVAILABLE_TIMER
 				+ random_rand() % NO_SPACE_TIMER;
 		AKM_PRINTF("No space available delaying for %d \n ",time);
-
 	}
+
 	schedule_send_challenge_timer(time, target);
 
 }
@@ -173,8 +181,7 @@ void handle_auth_challenge_response(
 		auth_challenge_response_t* pacr) {
 
 	nodeid_t* sender_id = &AKM_DATA.sender_id;
-	AKM_PRINTF("handle_auth_challenge_response ")
-;
+	AKM_PRINTF("handle_auth_challenge_response ");
 	AKM_PRINTADDR(sender_id);
 
 	if (!sec_verify_auth_response(pacr)) {
@@ -195,25 +202,27 @@ void handle_auth_challenge_response(
 			}
 		} else {
 			if (is_capacity_available()) {
+				AKM_PRINTF("capacity is available -- take the slot.\n");
 				if (get_authentication_state(sender_id)
 						== CHALLENGE_SENT_WAITING_FOR_OK) {
 					send_auth_ack(sender_id, NULL);
 					set_authentication_state(sender_id, AUTHENTICATED);
 				}
 			} else if (is_redundant_parent_available()) {
-				memset(&AKM_MAC_OUTPUT.data.auth_ack.parent_id, 0,
-						sizeof(nodeid_t));
 				nodeid_t* pparent = get_parent_id();
 				/* A redundant paprent is available. So take that slot. */
 				send_auth_ack(sender_id, NULL);
 
-				/* Break the security assoc. with my parent */
-				send_break_security_association(pparent, BSA_CONTINUATION_NONE,
-						0);
+				/* Break the security assoc. with my parent.
+				 * Child now owns the slot
+				 */
+				AKM_PRINTF("breaking security association with redundant parent\n");
+				send_break_security_association(pparent, BSA_CONTINUATION_NONE,0);
 				/* Take the parent slot and give it to the sender */
 				replace_authenticated_neighbor(pparent, sender_id, key);
 			} else {
 				/* Redundant parent is not available */
+				AKM_PRINTF("redundant parent NOT available.\n");
 				nodeid_t* pparent = get_parent_id();
 				/* Send the parent along to the child so he may identify
 				 * a pair between which to insert himself.
@@ -295,7 +304,7 @@ void schedule_send_challenge_timer(int time, nodeid_t* target) {
 		akm_timer_set(&AKM_DATA.send_challenge_delay_timer[i], time,
 				do_send_challenge, target,TTYPE_ONESHOT);
 	} else {
-		AKM_PRINTF("Cannot find authenticated neighbor ");
+		AKM_PRINTF("Cannot find authenticated neighbor - not sending challenge");
 		AKM_PRINTADDR(target);
 	}
 }
@@ -350,4 +359,15 @@ void stop_auth_timer(nodeid_t* target) {
 	if (i != -1) {
 		akm_timer_stop(&AKM_DATA.auth_timer[i]);
 	}
+}
+/*-----------------------------------------------------------------------*/
+void tear_down_authenticated_links() {
+	int i;
+	for ( i = 0 ; i < NELEMS(AKM_DATA.authenticated_neighbors); i++ ) {
+		if ( AKM_DATA.authenticated_neighbors[i].state != UNAUTHENTICATED ) {
+			AKM_DATA.authenticated_neighbors[i].state = UNAUTHENTICATED;
+			send_break_security_association(&AKM_DATA.authenticated_neighbors[i].node_id, BSA_CONTINUATION_NONE,NULL);
+		}
+	}
+	reset_beacon();
 }
