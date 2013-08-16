@@ -169,6 +169,7 @@ int check_and_parse(char * packet, int size, int * offset, int * packet_size) {
 	if (p[0] == SIM_END) {
 		fprintf(stderr, "udpradio: simulation is ending\n");
 		/* TODO: call some code to save simulation data */
+        (*sigcatcher)(EXIT_SUCCESS);
 		exit(EXIT_SUCCESS);
 	}
 
