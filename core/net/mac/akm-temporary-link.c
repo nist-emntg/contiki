@@ -55,7 +55,7 @@ void schedule_temp_link_timer() {
 	int time = TEMP_LINK_TIMER ;
 	int i = find_authenticated_neighbor(&AKM_DATA.temporaryLink);
 	if (i != -1) {
-		akm_timer_set(&AKM_DATA.auth_timer[i] ,time,drop_temporary_link,NULL,TTYPE_ONESHOT);
+		akm_timer_set(&AKM_DATA.auth_timer[i] ,time,drop_temporary_link,NULL,0,TTYPE_ONESHOT);
 	}
 }
 
@@ -161,7 +161,7 @@ void schedule_pending_authentication_timer(nodeid_t *target)
 
 	if (i != -1) {
 		clock_time_t time = PENDING_AUTH_TIMEOUT ;
-		akm_timer_set(&AKM_DATA.auth_timer[i],time, handle_pending_auth_timeout,target,TTYPE_ONESHOT);
+		akm_timer_set(&AKM_DATA.auth_timer[i],time, handle_pending_auth_timeout,target,sizeof(*target),TTYPE_ONESHOT);
 	}
 }
 
