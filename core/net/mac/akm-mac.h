@@ -35,6 +35,11 @@
 #define AKM_PRINTADDR(addr)
 #endif
 
+#ifdef AKM_DEBUG
+#define AKM_ABORT() exit(-1)
+#else
+#define AKM_ABORT
+#endif
 
 typedef enum {
 	CYCLE_DETECT   = 1,
@@ -74,7 +79,7 @@ typedef enum {
 
 
 /* externally exposed functions */
-bool_t isAuthenticated();
+bool_t is_authenticated();
 nodeid_t* getNodeId();
 void akm_route_message();
 
@@ -231,6 +236,7 @@ typedef struct akm_packet
 
 typedef enum {
 	 UNAUTHENTICATED = 0,
+	 PENDING_SEND_CHALLENGE,
 	 CHALLENGE_SENT_WAITING_FOR_OK,
 	 OK_SENT_WAITING_FOR_ACK,
 	 AUTH_PENDING,
@@ -252,13 +258,15 @@ typedef enum {
 	TTYPE_CONTINUOUS,
 	TTYPE_ONESHOT
 }ttype_t;
+// For now, all timers have to do is deal with node ids
+#define MAX_DATASIZE sizeof(nodeid_t) + sizeof(beacon_t)
 
 typedef struct akm_timer {
 #ifdef AKM_DEBUG
 	 char timername[32];
 #endif
 	 void (*f)(void *);
-	 void *ptr;
+	 char ptr[MAX_DATASIZE];
 	 int interval;
 	 int current_count;
 	 ttype_t ttype;
@@ -270,7 +278,6 @@ typedef struct akm_data
 {
 	bool_t is_dodag_root;
 	nodeid_t node_id;
-	bool_t is_authenticated;
 	uint8_t output_fragid;
 	uint8_t input_fragid;
 	nodeid_t sender_id;
@@ -307,17 +314,16 @@ void handle_break_security_association(break_security_association_request_t* pbs
 void handle_break_security_association_reply(break_security_association_reply_t* msg);
 void handle_confirm_temporary_link(confirm_temporary_link_request_t* ctl);
 bool_t is_capacity_available() ;
-bool_t is_authenticated(nodeid_t* pnodeid);
+bool_t is_authenticated();
 void akm_send(nodeid_t *targetId, akm_op_t command, int size);
 bool_t is_nodeid_zero(nodeid_t* pnodeId);
 bool_t is_redundant_parent_available();
 bool_t is_temp_link_available();
 void take_temporary_link();
 void reset_beacon();
-void schedule_send_challenge_timer(int time, nodeid_t* target);
+void schedule_send_challenge_timer(int time, nodeid_t* target,beacon_t* pbeacon);
 bool_t replace_authenticated_neighbor(nodeid_t *pauthNeighbor,
 		nodeid_t *newNeighbor, session_key_t* key);
-void schedule_send_challenge_timer(int time, nodeid_t* target);
 void add_authenticated_neighbor(nodeid_t* pnodeId,
 		session_key_t* sessionKey, authentication_state authState) ;
 void schedule_pending_authentication_timer(nodeid_t *target);
@@ -328,7 +334,7 @@ rpl_dag_t * get_dodag_root();
 void send_auth_ack(nodeid_t* target_id,nodeid_t * pparent);
 void free_slot(int slot);
 
-
+bool_t is_authenticated();
 nodeid_t* grab_dodag_parent();
 
 nodeid_t * get_parent_id();
@@ -346,7 +352,7 @@ bool_t set_authentication_state(nodeid_t* node_id, authentication_state authStat
 void handle_confirm_temporary_link_response(
 		confirm_temporary_link_response_t* ctlr);
 bool_t is_neighbor_authenticated(nodeid_t* neighbor_id) ;
-void send_challenge(nodeid_t* target);
+void send_challenge(nodeid_t* target, beacon_t* pbeacon);
 rpl_parent_t *rpl_find_parent(rpl_dag_t *dag, uip_ipaddr_t *addr);
 authentication_state get_authentication_state(nodeid_t* neighbor_id);
 bool_t temporary_link_exists();
@@ -354,7 +360,7 @@ bool_t is_nodeid_in_parent_list(nodeid_t* nodeid);
 char* get_auth_state_as_string(authentication_state authState);
 void schedule_beacon(void);
 void make_temporary_link_permanent();
-void akm_timer_set(akm_timer_t *c, clock_time_t t, void (*f)(void *), void *ptr, ttype_t ttype) ;
+void akm_timer_set(akm_timer_t *c, clock_time_t t, void (*f)(void *), void *ptr, int datasize, ttype_t ttype) ;
 void akm_timer_reset(akm_timer_t* c);
 void akm_timer_stop(akm_timer_t* c);
 rpl_parent_t *rpl_get_first_parent(rpl_dag_t* dag) ;
@@ -362,11 +368,10 @@ rpl_parent_t *rpl_get_first_parent(rpl_dag_t* dag) ;
 void schedule_waiting_for_ack_timeout(nodeid_t *target);
 
 
+
+
 #ifdef AKM_DEBUG
 extern void set_sighandler(void (*handler)(int) );
-#define SET_SIGHANDLER set_sighandler
-#else
-#define SET_SIGHANDLER
 #endif
 
 #endif /* __AKM_MAC_H */

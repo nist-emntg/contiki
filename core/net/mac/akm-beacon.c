@@ -18,7 +18,7 @@ static clock_time_t get_beacon_interval();
 /*---------------------------------------------------------------------------*/
 void send_beacon() {
 	AKM_PRINTF("send_beacon\n");
-	AKM_MAC_OUTPUT.data.beacon.is_authenticated = AKM_DATA.is_authenticated;
+	AKM_MAC_OUTPUT.data.beacon.is_authenticated = is_authenticated();
 	akm_send(ALL_NEIGHBORS, BEACON,sizeof(AKM_MAC_OUTPUT.data.beacon));
 }
 
@@ -28,7 +28,7 @@ void handle_beacon(beacon_t *pbeacon) {
 	AKM_PRINTADDR(senderId);
 	if (AKM_DATA.is_dodag_root) {
 		if (!is_neighbor_authenticated(senderId)) {
-			send_challenge(senderId);
+			send_challenge(senderId,pbeacon);
 		}
 	} else {
 		int i;
@@ -46,7 +46,7 @@ void handle_beacon(beacon_t *pbeacon) {
 		if (is_part_of_dodag() && !transientState) {
 			if (get_authentication_state(senderId) == UNAUTHENTICATED &&
 					(!pbeacon->is_authenticated || is_capacity_available())){
-				send_challenge(senderId);
+				send_challenge(senderId,pbeacon);
 			} else if (get_authentication_state(senderId) == AUTHENTICATED &&
 					rimeaddr_cmp(&AKM_DATA.temporaryLink,senderId)){
 				nodeid_t* parent = get_parent_id();
@@ -58,14 +58,14 @@ void handle_beacon(beacon_t *pbeacon) {
 }
 /*-----------------------------------------------------------------------*/
 static void handle_beacon_timer(void* ptr) {
-	AKM_PRINTF("handle_beacon_timer %d \n", isAuthenticated());
+	AKM_PRINTF("handle_beacon_timer %d \n", is_authenticated());
 	send_beacon();
 	AKM_DATA.beacon_timer.interval = get_beacon_interval();
 }
 /*-------------------------------------------------------------------------*/
 static clock_time_t get_beacon_interval() {
 	/* Schedule a  beacon message */
-		if (!isAuthenticated() && !isAuthenticationInPending()) {
+		if (!is_authenticated() && !isAuthenticationInPending()) {
 			return BEACON_TIMER_INTERVAL ;
 		} else {
 			return BEACON_TIMER_AUTH_INTERVAL ;
@@ -88,6 +88,6 @@ void reset_beacon( void ) {
 void schedule_beacon(void) {
 	AKM_PRINTF("schedule_beacon %d\n",get_beacon_interval());
 	send_beacon();
-	akm_timer_set(&AKM_DATA.beacon_timer, get_beacon_interval(), handle_beacon_timer, NULL,TTYPE_CONTINUOUS);
+	akm_timer_set(&AKM_DATA.beacon_timer, get_beacon_interval(), handle_beacon_timer, NULL,0,TTYPE_CONTINUOUS);
 }
 

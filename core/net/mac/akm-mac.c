@@ -25,6 +25,7 @@ extern void rpl_remove_parent(rpl_dag_t *dag, rpl_parent_t *parent);
 extern rpl_parent_t *rpl_select_redundant_parent(rpl_dag_t *dag);
 void free_slot(int slot);
 static void check_and_restart(void *ptr);
+static void akm_sighandler(int signo);
 
 int auth_seqno = 0;
 
@@ -44,7 +45,6 @@ void internal_error(char* error_message) {
 void akm_set_dodag_root(rpl_dag_t *pdag) {
 	AKM_PRINTF("set_dodag_root: setting dodag root \n")
 ;	AKM_DATA.is_dodag_root = 1;
-	AKM_DATA.is_authenticated = 1;
 }
 
 /*--------------------------------------------------------------------------*/
@@ -127,20 +127,30 @@ static void insert_id(int location, nodeid_t* pNodeId,
 	}
 }
 
-void akm_timer_set(akm_timer_t *c, clock_time_t t, void (*f)(void *), void *ptr,
+void akm_timer_set(akm_timer_t *c, clock_time_t t, void (*f)(void *), void *ptr, int datasize,
 		ttype_t timerType) {
 	AKM_PRINTF("akm_timer_set : %s %u \n",c->timername, t)
 ;	if (t == 0) {
 		AKM_PRINTF("ERROR!! invalid param t cannot be zero!\n")
 ;
+		AKM_ABORT();
+		return;
+	}
+
+	if ( datasize > sizeof(c->ptr)) {
+		AKM_PRINTF("ERROR!! data size is too large!\n");
+		AKM_ABORT();
 		return;
 	}
 	c->f = f;
-	c->ptr = ptr;
 	c->current_count = 0;
 	c->interval = t;
 	c->timer_state = TIMER_STATE_RUNNING;
 	c->ttype = timerType;
+	if ( datasize > 0 ) {
+		memcpy(&c->ptr,ptr,datasize);
+	}
+
 }
 
 void akm_timer_reset(akm_timer_t* c) {
@@ -177,7 +187,7 @@ static void fire_timer(akm_timer_t* pakmTimer) {
 		AKM_PRINTF(
 				"timer:%s count %d\n",pakmTimer->timername,pakmTimer->current_count)
 ;		if (pakmTimer->current_count == 0) {
-			(*pakmTimer->f)(pakmTimer->ptr);
+			(*pakmTimer->f)(&pakmTimer->ptr);
 			if (pakmTimer->ttype == TTYPE_ONESHOT) {
 				pakmTimer->timer_state = TIMER_STATE_OFF;
 			}
@@ -370,7 +380,11 @@ bool_t is_neighbor_authenticated(nodeid_t* neighbor_id) {
 	for (i = 0; i < NELEMS(AKM_DATA.authenticated_neighbors); i++) {
 		if (rimeaddr_cmp(&AKM_DATA.authenticated_neighbors[i].node_id,
 				neighbor_id)) {
-			return True;
+            if ( AKM_DATA.authenticated_neighbors[i].state == AUTHENTICATED ) {
+                return True;
+            } else {
+                return False;
+            }
 		}
 	}
 	return False;
@@ -388,7 +402,7 @@ int find_authenticated_neighbor(nodeid_t* nodeid) {
 }
 
 /*-----------------------------------------------------------------------*/
-bool_t isAuthenticated() {
+bool_t is_authenticated() {
 	if (AKM_DATA.is_dodag_root) {
 		return True;
 	} else {
@@ -492,6 +506,9 @@ static void init(void) {
 	set_master_timer();
 
 	random_init(0);
+#ifdef AKM_DEBUG
+    set_sighandler(akm_sighandler);
+#endif
 
 }
 /*---------------------------------------------------------------------------*/
@@ -500,6 +517,8 @@ char* get_auth_state_as_string(authentication_state auth_state) {
 	switch (auth_state) {
 	case UNAUTHENTICATED:
 		return " UNAUTHENTICATED ";
+	case PENDING_SEND_CHALLENGE:
+		return " PENDING_SEND_CHALLENGE" ;
 	case CHALLENGE_SENT_WAITING_FOR_OK:
 		return " CHALLENGE_SENT_WAITING_FOR_OK ";
 	case OK_SENT_WAITING_FOR_ACK:
@@ -610,8 +629,7 @@ void akm_packet_input(void) {
 			}
 		}
 		packetbuf_clear();
-	} else if (is_neighbor_authenticated(
-					(nodeid_t*) packetbuf_addr(PACKETBUF_ADDR_SENDER))) {
+	} else if (is_neighbor_authenticated((nodeid_t*) packetbuf_addr(PACKETBUF_ADDR_SENDER))) {
 		AKM_PRINTF("neighbor is authenticated routing directly to NETSTACK");
 		NETSTACK_NETWORK.input();
 	} else {
