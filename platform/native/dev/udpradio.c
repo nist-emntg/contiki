@@ -320,7 +320,7 @@ while (1) {
 			PRINTF("transmission delay is more than a second\n");
 			stop_simulation();
 		}
-/*
+
 		if ((PHY_HEADER + real_packet_size) * TRANSFER_TIME_PER_BYTE
 				+ CCA_DURATION
 				+ COMPUTATION_DURATION
@@ -332,7 +332,7 @@ while (1) {
 				   + CCA_DURATION + COMPUTATION_DURATION);
 			log_msg_one_node(LOG_SIM_OUTOFSYNC, "", 0);
 		}
-*/
+
 		break;
 	}
 	case INCOMING_PACKET:
