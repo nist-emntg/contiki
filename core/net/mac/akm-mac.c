@@ -87,11 +87,14 @@ bool_t is_nodeid_zero(nodeid_t* pnodeId) {
 	return rimeaddr_cmp(pnodeId, &rimeaddr_null);
 }
 /*---------------------------------------------------------------------------*/
-bool_t is_capacity_available() {
+
+/*---------------------------------------------------------------------------*/
+bool_t is_capacity_available(nodeid_t* pnode) {
 	int capacityCount = 0;
 	int i;
 	for (i = 0; i < NELEMS(AKM_DATA.authenticated_neighbors); i++) {
-		if (AKM_DATA.authenticated_neighbors[i].state == UNAUTHENTICATED) {
+		if (AKM_DATA.authenticated_neighbors[i].state == UNAUTHENTICATED ||
+				(pnode != NULL && rimeaddr_cmp(&AKM_DATA.authenticated_neighbors[i].node_id,pnode))) {
 			capacityCount++;
 		}
 	}
@@ -233,23 +236,6 @@ void add_authenticated_neighbor(nodeid_t* pnodeId, session_key_t* sessionKey,
 		reset_beacon();
 }
 
-/*--------------------------------------------------------------------------*/
-bool_t replace_authenticated_neighbor(nodeid_t *pauthNeighbor,
-		nodeid_t *newNeighbor, session_key_t* key) {
-	int i;
-	for (i = 0; i < NELEMS(AKM_DATA.authenticated_neighbors); i++) {
-		if (rimeaddr_cmp(pauthNeighbor,
-				&AKM_DATA.authenticated_neighbors[i].node_id)) {
-			memcpy(&AKM_DATA.authenticated_neighbors[i].node_id, newNeighbor,
-					sizeof(nodeid_t));
-			memcpy(&AKM_DATA.authenticated_neighbors[i].session_key, key,
-					sizeof(session_key_t));
-			return True;
-		}
-	}
-	internal_error("Cannot find authenticated neighbor to replace");
-	return False;
-}
 
 /*---------------------------------------------------------------------------*/
 bool_t has_authenticated_neighbors() {
