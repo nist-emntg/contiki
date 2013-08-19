@@ -169,7 +169,9 @@ PROCESS_END();
 
 /*----------------------------------------------------------------------------*/
 void default_signal_catcher(int signo) {
-	PRINTF("Caught a signal %d - exitting\n",signo);
+	PRINTF("Caught a signal %d - exiting\n",signo);
+	log_msg_one_node(LOG_SIM_END, "", 0);
+	exit(EXIT_SUCCESS);
 }
 /*----------------------------------------------------------------------------*/
 int check_and_parse(char * packet, int size, int * offset, int * packet_size) {
