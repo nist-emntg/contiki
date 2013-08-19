@@ -26,6 +26,7 @@
  */
 
 #include <arpa/inet.h>
+#include <errno.h>
 #include <getopt.h>
 #include <netinet/in.h>
 #include <pthread.h>
@@ -35,6 +36,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+#include <sys/logger.h>
 #include <time.h>
 #include <signal.h>
 
@@ -86,6 +88,14 @@ static const void *pending_data;
 static int sockfd = 0;
 static struct sockaddr emuaddr;
 static socklen_t emuaddr_len;
+static struct sockaddr mcast_addr_in;
+static socklen_t mcast_addr_in_len;
+
+#define LOG_MSG_HLEN 3
+
+#define LOG_ONE_NODE 1
+#define LOG_TWO_NODES 2
+#define LOG_MANY_NODES 3
 
 /* simulation related data */
 static uint16_t identifier = 0; /* the node's identifier in the simulation */
@@ -107,7 +117,7 @@ extern int contiki_argc;
 
 enum frame_type { INBOUND_FRAME, SIM_STOP, /* from the clients */
 		  OUTBOUND_FRAME, SIM_END, /* from the server */
-		  MISC_DATA = 128 /* type for events registered by the simulation logger */ };
+		  LOG_DATA = 128 /* type for events registered by the simulation logger */ };
 
 enum msg_type { SELF_PACKET, INCOMING_PACKET,
 		GARBAGE_PACKET, PACKET_NOT_FOR_ME,
@@ -137,6 +147,8 @@ PROCESS_THREAD(udpradio, ev, data) {
 	PROCESS_BEGIN()
 	;
 	PRINTF("udpradio: process() started\n");
+
+	log_msg_one_node(LOG_SIM_START, "", 0);
 
 	while (1) {
 		PROCESS_YIELD_UNTIL(ev == PROCESS_EVENT_POLL);
@@ -311,12 +323,12 @@ while (1) {
 				+ CCA_DURATION
 				+ COMPUTATION_DURATION
 				< transmission_delay) {
-			PRINTF("transmission delay is greater than the theoritical transmission delay"
+			PRINTF("transmission delay is greater than the theoretical transmission delay"
 				   " (%ld > %ld)\n",
 				   transmission_delay,
 				   (PHY_HEADER + real_packet_size) * TRANSFER_TIME_PER_BYTE
 				   + CCA_DURATION + COMPUTATION_DURATION);
-			stop_simulation();
+			log_msg_one_node(LOG_SIM_OUTOFSYNC, "", 0);
 		}
 */
 		break;
@@ -424,7 +436,6 @@ fprintf(stderr, "-p,--emuport       PHY emulator (wiredto154) port to connect to
 		exit(EXIT_FAILURE);
 	}
 }
-
 /*--------------------------------------------------------------------*/
 static int init(void) {
 	pthread_t reader;
@@ -445,7 +456,31 @@ static int init(void) {
 	// note that the PHY emulator address as to be of the same address familly
 	// as the multicast group (e.g. both must be of type AF_INET)
 	if (join_multicast_group(emuaddr.sa_family, mcast_addr, sockfd)) {
-		fprintf(stderr, "unable to join multicast group, exiting");
+		fprintf(stderr, "unable to join multicast group, exiting\n");
+		exit(EXIT_FAILURE);
+	}
+
+	memset(&mcast_addr_in, 0, sizeof(mcast_addr_in));
+	if (emuaddr.sa_family == AF_INET) {
+		struct sockaddr_in mcast_addr_ip4;
+		mcast_addr_ip4.sin_family = AF_INET;
+		mcast_addr_ip4.sin_port = htons(atoi(mport));
+		if (inet_pton(AF_INET, mcast_addr, &mcast_addr_ip4.sin_addr) != 1) {
+			fprintf(stderr, "unable to convert multicast address into internal format, exiting\n");
+			exit(EXIT_FAILURE);
+		}
+		memcpy(&mcast_addr_in, &mcast_addr_ip4, sizeof(mcast_addr_ip4));
+		mcast_addr_in_len = sizeof(mcast_addr_ip4);
+	} else if (emuaddr.sa_family == AF_INET6) {
+		struct sockaddr_in6 mcast_addr_ip6;
+		mcast_addr_ip6.sin6_family = AF_INET6;
+		mcast_addr_ip6.sin6_port = htons(atoi(mport));
+		if (inet_pton(AF_INET6, mcast_addr, &mcast_addr_ip6.sin6_addr) != 1) {
+			fprintf(stderr, "unable to convert multicast address into internal format, exiting\n");
+			exit(EXIT_FAILURE);
+		}
+	} else {
+		fprintf(stderr, "address family %d not supported\n", emuaddr.sa_family);
 		exit(EXIT_FAILURE);
 	}
 
@@ -561,7 +596,103 @@ PRINTF("udpradio: radio_off \n");
 simRadioHWOn = 0;
 return 1;
 }
+/*---------------------------------------------------------------------------*/
+int log_msg_one_node(uint8_t subtype, char * msg, size_t msg_len) {
+	ssize_t ret;
+	uint16_t identifier_be = htons(identifier);
 
+	char * data = malloc(LOG_MSG_HLEN + sizeof(uint16_t) + msg_len);
+	if (!data) {
+		PRINTF("udpradio: unable to allocate memory\n");
+		return -1;
+	}
+
+	data[0] = LOG_DATA;
+	data[1] = LOG_ONE_NODE;
+	data[2] = subtype;
+	memcpy(&data[3], &identifier_be, sizeof(uint16_t));
+	memcpy(&data[5], msg, msg_len);
+
+	ret = sendto(sockfd, data, LOG_MSG_HLEN + sizeof(uint16_t) + msg_len, 0,
+		   &mcast_addr_in, mcast_addr_in_len);
+	free(data);
+	if (ret == -1) {
+		PRINTF("unable to send message: %s\n", strerror(errno));
+	}
+	return ret;
+}
+/*---------------------------------------------------------------------------*/
+int log_msg_two_nodes(uint8_t subtype, uint16_t other_node_id, char * msg, size_t msg_len) {
+	ssize_t ret;
+	uint16_t identifier_be = htons(identifier);
+	uint16_t other_node_id_be = htons(other_node_id);
+
+	char * data = malloc(LOG_MSG_HLEN + 2 * sizeof(uint16_t) + msg_len);
+	if (!data) {
+		PRINTF("udpradio: unable to allocate memory\n");
+		return -1;
+	}
+
+	data[0] = LOG_DATA;
+	data[1] = LOG_TWO_NODES;
+	data[2] = subtype;
+	memcpy(&data[3], &identifier_be, sizeof(uint16_t));
+	memcpy(&data[5], &other_node_id_be, sizeof(uint16_t));
+	memcpy(&data[7], msg, msg_len);
+
+	ret = sendto(sockfd, data, LOG_MSG_HLEN + 2 * sizeof(uint16_t) + msg_len, 0,
+		   &mcast_addr_in, mcast_addr_in_len);
+	free(data);
+	if (ret == -1) {
+		PRINTF("unable to send message: %s\n", strerror(errno));
+	}
+	return ret;
+}
+/*---------------------------------------------------------------------------*/
+/* log a message involving many nodes
+ * nodes_id contains the list of nodes being involved and must end with a 0 */
+int log_msg_many_nodes(uint8_t subtype, uint16_t * nodes_id,
+					   char * msg, size_t msg_len) {
+	ssize_t ret;
+	int offset, i;
+	uint16_t * p = nodes_id;
+	uint16_t num_nodes = 1, num_nodes_be, identifier_be = 0;
+
+	/* scan the other_nodes_id for 0 */
+	while(* p) {
+		++num_nodes;
+		++p;
+	}
+	num_nodes_be = htons(num_nodes);
+
+	char * data = malloc(LOG_MSG_HLEN + (2 + num_nodes) * sizeof(uint16_t) + msg_len);
+	if (!data) {
+		PRINTF("udpradio: unable to allocate memory\n");
+		return -1;
+	}
+
+	data[0] = LOG_DATA;
+	data[1] = LOG_MANY_NODES;
+	data[2] = subtype;
+	memcpy(&data[3], &num_nodes_be, sizeof(uint16_t));
+	identifier_be = htons(identifier);
+	memcpy(&data[5], &identifier_be, sizeof(uint16_t));
+	offset = 7;
+	for(i=0; i < num_nodes; ++i, offset += 2) {
+		identifier_be = htons(nodes_id[i]);
+		memcpy(&data[offset], &identifier_be, sizeof(uint16_t));
+	}
+	memcpy(&data[offset], msg, msg_len);
+
+	ret = sendto(sockfd, data, LOG_MSG_HLEN + (2 + num_nodes) * sizeof(uint16_t) + msg_len, 0,
+		   &mcast_addr_in, mcast_addr_in_len);
+	free(data);
+	if (ret == -1) {
+		PRINTF("unable to send message: %s\n", strerror(errno));
+	}
+
+	return ret;
+}
 /*---------------------------------------------------------------------*/
 const struct radio_driver udpradio_driver = { init, prepare_packet,
 	transmit_packet, radio_send, radio_read, channel_clear, receiving_packet,
