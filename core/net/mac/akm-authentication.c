@@ -57,9 +57,7 @@ bool_t set_authentication_state(nodeid_t* node_id,
 		authentication_state authState) {
 	int i;
 	bool_t retval = False;
-	AKM_PRINTF(
-			"set_authentication_state : %s ",get_auth_state_as_string(authState))
-;	AKM_PRINTADDR(node_id);
+
 	for (i = 0; i < NELEMS(AKM_DATA.authenticated_neighbors); i++) {
 		if (rimeaddr_cmp(&AKM_DATA.authenticated_neighbors[i].node_id,
 				node_id)) {
@@ -87,6 +85,10 @@ bool_t set_authentication_state(nodeid_t* node_id,
 					}
 				}
 			}
+			AKM_PRINTF("set_authentication_state : %d %s ",i, get_auth_state_as_string(authState));
+			AKM_PRINTADDR(node_id);
+
+
 			AKM_DATA.authenticated_neighbors[i].state = authState;
 			retval = True;
 			break;
@@ -122,7 +124,7 @@ void do_send_challenge(void* pvoid) {
 ;	AKM_PRINTADDR(target);
 
 	bool_t bSendChallenge = True;
-	if (is_capacity_available()) {
+	if (is_capacity_available(target)) {
 		AKM_MAC_OUTPUT.data.auth_challenge.status_code = AUTH_SPACE_AVAILABLE;
 	} else if (is_redundant_parent_available()) {
 		if (is_temp_link_available()) {
@@ -143,13 +145,14 @@ void do_send_challenge(void* pvoid) {
 ;			bSendChallenge = False;
 		}
 	}
-
+	/* For later : reduce the amount of searching by defining new index methods */
+	int i = find_authenticated_neighbor(target);
+	akm_timer_stop(&AKM_DATA.send_challenge_delay_timer[i]);
 	if (bSendChallenge) {
 		akm_send(target, AUTH_CHALLENGE,
 				sizeof(AKM_MAC_OUTPUT.data.auth_challenge));
 		set_authentication_state(target, CHALLENGE_SENT_WAITING_FOR_OK);
-		int i = find_authenticated_neighbor(target);
-		akm_timer_stop(&AKM_DATA.send_challenge_delay_timer[i]);
+
 
 	} else {
 		set_authentication_state(target, UNAUTHENTICATED);
@@ -161,7 +164,7 @@ void send_challenge(nodeid_t* target, beacon_t * pbeacon) {
 	int time;
 	add_authenticated_neighbor(target, NULL, PENDING_SEND_CHALLENGE);
 
-	if (is_capacity_available()) {
+	if (is_capacity_available(target)) {
 		time = random_rand() % SPACE_AVAILABLE_TIMER;
 	} else if (is_authenticated() && is_redundant_parent_available()) {
 		time = SPACE_AVAILABLE_TIMER
@@ -209,7 +212,7 @@ void handle_auth_challenge_response(auth_challenge_response_t* pacr) {
 	} else {
 		session_key_t* key = &pacr->session_key;
 		if (AKM_DATA.is_dodag_root) {
-			if (is_capacity_available()) {
+			if (is_capacity_available(NULL)) {
 				if (set_authentication_state(sender_id, AUTHENTICATED)) {
 					send_auth_ack(sender_id, NULL);
 				} else {
@@ -221,7 +224,7 @@ void handle_auth_challenge_response(auth_challenge_response_t* pacr) {
 						BSA_CONTINUATION_NONE, NULL);
 			}
 		} else {
-			if (is_capacity_available()) {
+			if (is_capacity_available(sender_id)) {
 				AKM_PRINTF("capacity is available -- take the slot.\n")
 ;				if (get_authentication_state(sender_id)
 						== CHALLENGE_SENT_WAITING_FOR_OK) {
@@ -238,8 +241,6 @@ void handle_auth_challenge_response(auth_challenge_response_t* pacr) {
 				AKM_PRINTF(
 						"breaking security association with redundant parent")
 ;				AKM_PRINTADDR(pparent);
-				/* Take the parent slot and give it to the sender */
-				replace_authenticated_neighbor(pparent, sender_id, key);
 				set_authentication_state(sender_id, AUTHENTICATED);
 				/* ask the parent to drop the SA with us */
 				send_break_security_association(pparent, BSA_CONTINUATION_NONE,

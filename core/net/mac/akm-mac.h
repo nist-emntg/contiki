@@ -313,7 +313,7 @@ void handle_auth_challenge_response(auth_challenge_response_t *pauthChallengeRes
 void handle_break_security_association(break_security_association_request_t* pbsa);
 void handle_break_security_association_reply(break_security_association_reply_t* msg);
 void handle_confirm_temporary_link(confirm_temporary_link_request_t* ctl);
-bool_t is_capacity_available() ;
+bool_t is_capacity_available(nodeid_t* target) ;
 bool_t is_authenticated();
 void akm_send(nodeid_t *targetId, akm_op_t command, int size);
 bool_t is_nodeid_zero(nodeid_t* pnodeId);

@@ -18,7 +18,10 @@
 
 /*----------------------------------------------------------------------*/
 bool_t is_temp_link_available() {
-	return is_nodeid_zero(&AKM_DATA.temporaryLink);
+	bool_t retval;
+	retval =  is_nodeid_zero(&AKM_DATA.temporaryLink);
+	AKM_PRINTF("is_temp_link_available: %d \n",retval);
+	return retval;
 }
 
 /*----------------------------------------------------------------------*/
