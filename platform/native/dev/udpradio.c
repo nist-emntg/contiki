@@ -667,7 +667,7 @@ int log_msg_many_nodes(uint8_t subtype, uint16_t * nodes_id,
 	}
 	num_nodes_be = htons(num_nodes);
 
-	char * data = malloc(LOG_MSG_HLEN + (2 + num_nodes) * sizeof(uint16_t) + msg_len);
+	char * data = malloc(LOG_MSG_HLEN + (1 + num_nodes) * sizeof(uint16_t) + msg_len);
 	if (!data) {
 		PRINTF("udpradio: unable to allocate memory\n");
 		return -1;
@@ -680,13 +680,13 @@ int log_msg_many_nodes(uint8_t subtype, uint16_t * nodes_id,
 	identifier_be = htons(identifier);
 	memcpy(&data[5], &identifier_be, sizeof(uint16_t));
 	offset = 7;
-	for(i=0; i < num_nodes; ++i, offset += 2) {
+	for(i=0; i < num_nodes - 1; ++i, offset += 2) {
 		identifier_be = htons(nodes_id[i]);
 		memcpy(&data[offset], &identifier_be, sizeof(uint16_t));
 	}
 	memcpy(&data[offset], msg, msg_len);
 
-	ret = sendto(sockfd, data, LOG_MSG_HLEN + (2 + num_nodes) * sizeof(uint16_t) + msg_len, 0,
+	ret = sendto(sockfd, data, LOG_MSG_HLEN + (1 + num_nodes) * sizeof(uint16_t) + msg_len, 0,
 		   &mcast_addr_in, mcast_addr_in_len);
 	free(data);
 	if (ret == -1) {
