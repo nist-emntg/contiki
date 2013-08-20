@@ -300,11 +300,18 @@ typedef struct akm_data
 }akm_data_t;
 
 
+typedef enum {
+	AKM_LOG_NODE_AUTH_STATE = 4,
+	AKM_LOG_PARENT_ID = 5
+};
+
 
 extern akm_data_t AKM_DATA;
 extern akm_mac_t AKM_MAC_OUTPUT;
 
 void free_security_association(nodeid_t* pnodeid);
+int get_node_id_as_int(nodeid_t* node_id);
+void schedule_beacon(void);
 
 void handle_auth_ack(auth_ack_t* pauthAck);
 void handle_auth_challenge(auth_challenge_request_t* pauthChallenge);
