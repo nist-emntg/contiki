@@ -120,7 +120,7 @@ enum frame_type { INBOUND_FRAME, SIM_STOP, /* from the clients */
 		  LOG_DATA = 128 /* type for events registered by the simulation logger */ };
 
 enum msg_type { SELF_PACKET, INCOMING_PACKET,
-		GARBAGE_PACKET, PACKET_NOT_FOR_ME,
+		GARBAGE_PACKET, PACKET_NOT_FOR_ME, LOG_MSG,
 		UNKNOWN_PACKET = 253, MALFORMED_PACKET = 254 };
 
 struct Packet {
@@ -174,8 +174,8 @@ void default_signal_catcher(int signo) {
 	exit(EXIT_SUCCESS);
 }
 /*----------------------------------------------------------------------------*/
-int check_and_parse(char * packet, int size, int * offset, int * packet_size) {
-	char * p = packet;
+int check_and_parse(unsigned char * packet, int size, int * offset, int * packet_size) {
+	unsigned char * p = packet;
 	* offset = 2;
 	if (size == 0)
 		return MALFORMED_PACKET;
@@ -256,6 +256,8 @@ int check_and_parse(char * packet, int size, int * offset, int * packet_size) {
 			else
 				return PACKET_NOT_FOR_ME;
 		}
+	} else if (p[0] == LOG_DATA) {
+		return LOG_MSG;
 	} else
 		return UNKNOWN_PACKET;
 }
@@ -351,6 +353,9 @@ while (1) {
 		packet_buf.size = packet_size - CRC_LENGTH;
 		packet_buf.inuse = 1;
 		process_poll(&udpradio);
+		break;
+	case PACKET_NOT_FOR_ME:
+	case LOG_MSG:
 		break;
 	default:
 		PRINTF("unrecognized message type: %d\n", type);
