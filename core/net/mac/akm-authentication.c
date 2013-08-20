@@ -13,6 +13,7 @@
 #include  "mac/akm-mac.h"
 #include  "packetbuf.h"
 #include "clock.h"
+#include <sys/logger.h>
 
 struct do_send_challenge_data {
 	nodeid_t sender_id;
@@ -57,7 +58,6 @@ bool_t set_authentication_state(nodeid_t* node_id,
 		authentication_state authState) {
 	int i;
 	bool_t retval = False;
-
 	for (i = 0; i < NELEMS(AKM_DATA.authenticated_neighbors); i++) {
 		if (rimeaddr_cmp(&AKM_DATA.authenticated_neighbors[i].node_id,
 				node_id)) {
@@ -66,6 +66,7 @@ bool_t set_authentication_state(nodeid_t* node_id,
 			if (AKM_DATA.authenticated_neighbors[i].state != currentAuthState) {
 				if (authState == AUTH_PENDING) {
 					schedule_pending_authentication_timer(node_id);
+
 				} else if (authState == OK_SENT_WAITING_FOR_ACK) {
 					schedule_waiting_for_ack_timeout(node_id);
 				} else if (authState == PENDING_SEND_CHALLENGE) {
@@ -85,6 +86,8 @@ bool_t set_authentication_state(nodeid_t* node_id,
 					}
 				}
 			}
+
+
 			AKM_PRINTF("set_authentication_state : %d %s ",i, get_auth_state_as_string(authState));
 			AKM_PRINTADDR(node_id);
 

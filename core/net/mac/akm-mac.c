@@ -565,7 +565,7 @@ void akm_packet_input(void) {
 	akm_mac_t* pakm_mac = packetbuf_dataptr();
 
 	AKM_PRINTF(
-			"akm_mac::datalen = %d sizeof buffer = %ul  protocol_id = %x \n",
+			"akm_mac::datalen = %d sizeof buffer = %d  protocol_id = %x \n",
 			packetbuf_datalen(),sizeof(AKM_MAC_INPUT),
 			pakm_mac->mac_header.protocol_id)
 ;
@@ -622,28 +622,52 @@ void akm_packet_input(void) {
 		packetbuf_clear();
 	}
 }
+
+int get_node_id_as_int(nodeid_t* pnodeId) {
+	return (int) pnodeId->u8[NELEMS(pnodeId->u8) -1];
+}
 /*---------------------------------------------------------------------------*/
 #ifdef AKM_DEBUG
 static void akm_sighandler(int signo) {
 	int i;
+	char logbuf[256];
 	for (i = 0; i < NELEMS(AKM_DATA.authenticated_neighbors); i++) {
 		AKM_PRINTF(
 				"%d state = %s Neighbor address = ",i,get_auth_state_as_string(AKM_DATA.authenticated_neighbors[i].state))
 ;		AKM_PRINTADDR(&AKM_DATA.authenticated_neighbors[i]);
+		char* authState = get_auth_state_as_string(AKM_DATA.authenticated_neighbors[i].state);
+		log_msg_two_nodes(AKM_LOG_NODE_AUTH_STATE, get_node_id_as_int(&AKM_DATA.authenticated_neighbors[i]),authState, strlen(authState));
 	}
+	AKM_PRINTF("parents = {");
+
 	if (get_dodag_root() != NULL) {
-		AKM_PRINTF("parents = {");
 		rpl_parent_t* parent = rpl_get_first_parent(get_dodag_root());
+#ifdef CONTIKI_TARGET_NATIVE
+		int count = rpl_get_parent_count(get_dodag_root());
+		int* p = (uint16_t*) malloc( sizeof(uint16_t) * count);
+#endif
+		int i = 0;
 		while (parent != NULL) {
 			uip_ds6_nbr_t * neighbor = uip_ds6_nbr_lookup(&parent->addr);
 			//struct uip_neighbor_addr* pneighbor = uip_neighbor_lookup(&neighbor->ipaddr);
 			if (neighbor != NULL ) {
 				AKM_PRINTADDR((nodeid_t* ) &neighbor->lladdr);
+#ifdef CONTIKI_TARGET_NATIVE
+				p[i++] = get_node_id_as_int((nodeid_t*)&neighbor->lladdr);
+#endif
 			}
+
 			parent = parent->next;
 		}
-		AKM_PRINTF("}\n");
+#ifdef CONTIKI_TARGET_NATIVE
+		p[count] = 0;
+		log_msg_many_nodes(AKM_LOG_PARENT_ID,p,"RPL ",0);
+		free(p);
+#endif
+
 	}
+
+	AKM_PRINTF("}\n");
 }
 #endif
 /*---------------------------------------------------------------------------*/
