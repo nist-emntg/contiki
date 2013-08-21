@@ -87,9 +87,10 @@ bool_t set_authentication_state(nodeid_t* node_id,
 				}
 			}
 
-
+#ifdef AKM_DEBUG
 			AKM_PRINTF("set_authentication_state : %d %s ",i, get_auth_state_as_string(authState));
 			AKM_PRINTADDR(node_id);
+#endif
 
 
 			AKM_DATA.authenticated_neighbors[i].state = authState;
@@ -98,8 +99,8 @@ bool_t set_authentication_state(nodeid_t* node_id,
 		}
 	}
 	if (!retval) {
-		AKM_PRINTF("set_authention_state: node not found \n")
-;	}
+		AKM_PRINTF("set_authention_state: node not found \n");
+	}
 	return retval;
 }
 /*---------------------------------------------------------------------------*/
