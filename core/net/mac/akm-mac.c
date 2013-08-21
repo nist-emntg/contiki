@@ -37,6 +37,8 @@ akm_mac_t AKM_MAC_INPUT;
 
 #define MAX_TRANSMIT_SIZE (PACKETBUF_SIZE - PACKETBUF_HDR_SIZE)
 
+extern rimeaddr_t rimeaddr_node_addr;
+
 /*--------------------------------------------------------------------------*/
 void internal_error(char* error_message) {
 	PRINT_ERROR(error_message);
@@ -46,7 +48,11 @@ void akm_set_dodag_root(rpl_dag_t *pdag) {
 	AKM_PRINTF("set_dodag_root: setting dodag root \n")
 ;	AKM_DATA.is_dodag_root = 1;
 }
-
+/*---------------------------------------------------------------------------*/
+rimeaddr_t*
+getNodeId() {
+	return &rimeaddr_node_addr;
+}
 /*--------------------------------------------------------------------------*/
 nodeid_t* grab_dodag_parent() {
 	if (get_dodag_root() == NULL) {
