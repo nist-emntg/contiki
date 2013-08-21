@@ -15,6 +15,8 @@
 #include  "packetbuf.h"
 #include "clock.h"
 
+void schedule_temp_link_timer();
+void stop_temp_link_timer();
 
 /*----------------------------------------------------------------------*/
 bool_t is_temp_link_available() {
@@ -164,7 +166,7 @@ void schedule_pending_authentication_timer(nodeid_t *target)
 
 	if (i != -1) {
 		clock_time_t time = PENDING_AUTH_TIMEOUT ;
-		akm_timer_set(&AKM_DATA.auth_timer[i],time, handle_pending_auth_timeout,target,sizeof(*target),TTYPE_ONESHOT);
+		akm_timer_set(&AKM_DATA.auth_timer[i],time, (void (*) (void *)) handle_pending_auth_timeout,target,sizeof(*target),TTYPE_ONESHOT);
 	}
 }
 
