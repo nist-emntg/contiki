@@ -99,9 +99,11 @@ bool_t is_capacity_available(nodeid_t* pnode) {
 	int capacityCount = 0;
 	int i;
 	for (i = 0; i < NELEMS(AKM_DATA.authenticated_neighbors); i++) {
-		if (AKM_DATA.authenticated_neighbors[i].state == UNAUTHENTICATED ||
-				(pnode != NULL && rimeaddr_cmp(&AKM_DATA.authenticated_neighbors[i].node_id,pnode))) {
+		if (AKM_DATA.authenticated_neighbors[i].state == UNAUTHENTICATED) {
 			capacityCount++;
+		} else if (pnode != NULL &&
+				rimeaddr_cmp(&AKM_DATA.authenticated_neighbors[i].node_id,pnode)) {
+			return True;
 		}
 	}
 	AKM_PRINTF("is_capacity_available: capacityCount = %d \n",capacityCount)

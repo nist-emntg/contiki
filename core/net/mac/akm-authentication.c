@@ -63,10 +63,9 @@ bool_t set_authentication_state(nodeid_t* node_id,
 				node_id)) {
 			authentication_state currentAuthState =
 					AKM_DATA.authenticated_neighbors[i].state;
-			if (AKM_DATA.authenticated_neighbors[i].state != currentAuthState) {
+			if (authState != currentAuthState) {
 				if (authState == AUTH_PENDING) {
 					schedule_pending_authentication_timer(node_id);
-
 				} else if (authState == OK_SENT_WAITING_FOR_ACK) {
 					schedule_waiting_for_ack_timeout(node_id);
 				} else if (authState == PENDING_SEND_CHALLENGE) {
@@ -229,8 +228,8 @@ void handle_auth_challenge_response(auth_challenge_response_t* pacr) {
 			}
 		} else {
 			if (is_capacity_available(sender_id)) {
-				AKM_PRINTF("capacity is available -- take the slot.\n")
-;				if (get_authentication_state(sender_id)
+				AKM_PRINTF("capacity is available -- take the slot.\n");
+				if (get_authentication_state(sender_id)
 						== CHALLENGE_SENT_WAITING_FOR_OK) {
 					send_auth_ack(sender_id, NULL);
 					set_authentication_state(sender_id, AUTHENTICATED);

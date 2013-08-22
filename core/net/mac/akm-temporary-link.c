@@ -167,6 +167,8 @@ void schedule_pending_authentication_timer(nodeid_t *target)
 	if (i != -1) {
 		clock_time_t time = PENDING_AUTH_TIMEOUT ;
 		akm_timer_set(&AKM_DATA.auth_timer[i],time, (void (*) (void *)) handle_pending_auth_timeout,target,sizeof(*target),TTYPE_ONESHOT);
+	} else {
+		AKM_PRINTF("cannot find target \n");
 	}
 }
 
