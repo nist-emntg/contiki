@@ -21,6 +21,7 @@
 #include "random.h"
 #define NDEBUG
 #include <assert.h>
+#include <sys/logger.h>
 extern void rpl_remove_parent(rpl_dag_t *dag, rpl_parent_t *parent);
 extern rpl_parent_t *rpl_select_redundant_parent(rpl_dag_t *dag);
 void free_slot(int slot);
@@ -141,7 +142,7 @@ static void insert_id(int location, nodeid_t* pNodeId,
 void akm_timer_set(akm_timer_t *c, clock_time_t t, void (*f)(void *), void *ptr, int datasize,
 		ttype_t timerType) {
 #ifdef AKM_DEBUG
-	AKM_PRINTF("akm_timer_set : %s %u \n",c->timername, t)
+	AKM_PRINTF("akm_timer_set : %s %lu \n",c->timername, t)
 #endif
 ;	if (t == 0) {
 		AKM_PRINTF("ERROR!! invalid param t cannot be zero!\n")
@@ -213,13 +214,25 @@ static void fire_timer(akm_timer_t* pakmTimer) {
 }
 static void check_and_restart(void *ptr) {
 	AKM_PRINTF("check_and_restart master timer\n")
-;	int i;
+;
+
+	int i;
 	fire_timer(&AKM_DATA.beacon_timer);
 	for (i = 0; i < NELEMS(AKM_DATA.send_challenge_delay_timer); i++) {
 		fire_timer(&AKM_DATA.send_challenge_delay_timer[i]);
 	}
 	for (i = 0; i < NELEMS(AKM_DATA.auth_timer); i++) {
 		fire_timer(&AKM_DATA.auth_timer[i]);
+	}
+
+	for ( i = 0; i < NELEMS(AKM_DATA.authenticated_neighbors); i++) {
+		if ( AKM_DATA.authenticated_neighbors[i].state == AUTHENTICATED ) {
+			AKM_DATA.authenticated_neighbors[i].time_since_last_ping ++;
+			if ( AKM_DATA.authenticated_neighbors[i].time_since_last_ping > 2*BEACON_TIMER_IDLE_INTERVAL ) {
+				send_break_security_association(&AKM_DATA.authenticated_neighbors[i].node_id,
+						BSA_CONTINUATION_NONE,NULL);
+			}
+		}
 	}
 
 	/* schedule it again */
@@ -541,10 +554,12 @@ void remove_parent(nodeid_t* parent_nodeid) {
 		if (parent != NULL) {
 			rpl_remove_parent(get_dodag_root(), parent);
 		} else {
-			AKM_PRINTF("Could not find parent.\n")
-;		}
+			AKM_PRINTF("Could not find parent.\n");
+		}
+		/* Eject from the neighbor cache */
+		uip_ds6_nbr_rm(nbr);
 	} else {
-		AKM_PRINTF("Could not find in parent cache.\n");
+		AKM_PRINTF("Could not find neighbor in cache.\n");
 	}
 }
 /*---------------------------------------------------------------------------*/

@@ -19,6 +19,7 @@ static clock_time_t get_beacon_interval();
 void send_beacon() {
 	AKM_PRINTF("send_beacon\n");
 	AKM_MAC_OUTPUT.data.beacon.is_authenticated = is_authenticated();
+	AKM_MAC_OUTPUT.data.beacon.is_capacity_available = is_capacity_available(NULL);
 	akm_send(ALL_NEIGHBORS, BEACON,sizeof(AKM_MAC_OUTPUT.data.beacon));
 }
 
@@ -31,14 +32,18 @@ void handle_beacon(beacon_t *pbeacon) {
 			send_challenge(senderId,pbeacon);
 		}
 	} else {
-
-
 		AKM_PRINTF("is_authenticated sender = %d is_part_of_dodag = %d\n",
 				pbeacon->is_authenticated,is_part_of_dodag());
 		if (is_part_of_dodag()) {
 			if (get_authentication_state(senderId) == UNAUTHENTICATED &&
-					(!pbeacon->is_authenticated || is_capacity_available(senderId))){
+				(!pbeacon->is_authenticated ||
+				(pbeacon->is_capacity_available && is_capacity_available(senderId)))){
 				send_challenge(senderId,pbeacon);
+			} else if ( get_authentication_state(senderId) == AUTHENTICATED) {
+				int i = find_authenticated_neighbor(senderId);
+				if ( -1 != i) {
+					AKM_DATA.authenticated_neighbors[i].time_since_last_ping = 0;
+				}
 			}
 		}
 	}
@@ -55,20 +60,19 @@ static clock_time_t get_beacon_interval() {
 	/* Schedule a  beacon message */
 		if (!is_authenticated() && !isAuthenticationInPending()) {
 			return BEACON_TIMER_INTERVAL ;
-		} else {
+		} else if (is_capacity_available(NULL)){
 			return BEACON_TIMER_AUTH_INTERVAL ;
+		} else {
+			return BEACON_TIMER_IDLE_INTERVAL;
 		}
 }
 /*--------------------------------------------------------------------------*/
 void reset_beacon( void ) {
 	AKM_PRINTF("reset_beacon\n");
-	if ( is_capacity_available (NULL) ) {
-		AKM_DATA.beacon_timer.timer_state = TIMER_STATE_RUNNING;
-		AKM_DATA.beacon_timer.current_count = 0;
-		AKM_DATA.beacon_timer.interval = get_beacon_interval();
-	} else {
-		AKM_DATA.beacon_timer.timer_state = TIMER_STATE_OFF;
-	}
+	AKM_DATA.beacon_timer.timer_state = TIMER_STATE_RUNNING;
+	AKM_DATA.beacon_timer.current_count = 0;
+	AKM_DATA.beacon_timer.interval = get_beacon_interval();
+
 }
 
 /*---------------------------------------------------------------------------*/
