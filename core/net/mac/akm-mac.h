@@ -10,8 +10,8 @@
 // MARTA specific codes.
 #include <stdio.h>
 #include <string.h>
-#include <clock.h>
 #ifdef CONTIKI_TARGET_NATIVE
+#include <clock.h>
 #include <time.h>
 #include <stdlib.h>
 #endif
@@ -24,7 +24,11 @@
 #define PRINT_ERROR printf
 #define AKM_DEBUG 1
 #if AKM_DEBUG
-#define AKM_PRINTF printf("akm:%lu: ",clock()) ; printf
+#ifdef CONTIKI_TARGET_NATIVE
+#define AKM_PRINTF(...) printf("akm:%lu: ",clock()) ; printf(__VA_ARGS__)
+#else
+#define AKM_PRINTF(...) printf("akm: ") ; printf(__VA_ARGS__)
+#endif /* CONTIKI_TARGET_NATIVE */
 #define AKM_PRINTADDR(addr)\
 	if ( addr == NULL) {  \
 		printf ("NULL"); \
@@ -35,7 +39,7 @@
 	((uint8_t *)addr)[4], ((uint8_t *)addr)[5], \
 	((uint8_t *)addr)[6], ((uint8_t *)addr)[7]); }
 #else
-#define AKM_PRINTF
+#define AKM_PRINTF(...) do {} while(0)
 #define AKM_PRINTADDR(addr)
 #endif
 
