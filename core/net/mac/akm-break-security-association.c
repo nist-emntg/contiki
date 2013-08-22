@@ -83,9 +83,11 @@ void handle_break_security_association_reply( break_security_association_reply_t
 
 /*----------------------------------------------------------------------*/
 void send_break_security_association(nodeid_t* target, bsa_continuation continuation, nodeid_t* pnodeid) {
+#ifdef AKM_DEBUG
 	AKM_PRINTF("send_break_security_association : continuaiton = %s target = ",
 			get_break_security_association_continuation_as_string(continuation));
 	AKM_PRINTADDR(target);
+#endif
 	AKM_MAC_OUTPUT.data.bsa_request.continuation = continuation;
 	if ( pnodeid != NULL ) {
 		rimeaddr_copy(&AKM_MAC_OUTPUT.data.bsa_request.insert_node_requester,pnodeid);
