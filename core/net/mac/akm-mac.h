@@ -11,6 +11,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <clock.h>
+#ifdef CONTIKI_TARGET_NATIVE
+#include <time.h>
+#include <stdlib.h>
+#endif
 
 #include "rpl.h"
 #include "net/mac/frame802154.h"
@@ -20,7 +24,7 @@
 #define PRINT_ERROR printf
 #define AKM_DEBUG 1
 #if AKM_DEBUG
-#define AKM_PRINTF printf("akm:%d: ",clock()) ; printf
+#define AKM_PRINTF printf("akm:%lu: ",clock()) ; printf
 #define AKM_PRINTADDR(addr)\
 	if ( addr == NULL) {  \
 		printf ("NULL"); \
@@ -57,6 +61,7 @@ typedef enum {
 /* MARTA related constants */
 #define BEACON_TIMER_INTERVAL     			5
 #define BEACON_TIMER_AUTH_INTERVAL          10
+#define BEACON_TIMER_IDLE_INTERVAL          600
 #define TEMP_LINK_TIMER                     30
 #define PENDING_AUTH_TIMEOUT         		30
 #define SPACE_AVAILABLE_TIMER               5
@@ -130,6 +135,7 @@ typedef struct akm_mac_header {
 
 typedef struct beacon_header {
 	bool_t is_authenticated;
+	bool_t is_capacity_available;
 } beacon_t;
 
 
@@ -248,6 +254,7 @@ typedef struct
 	nodeid_t node_id;
 	session_key_t session_key;
 	authentication_state state;
+	uint16_t time_since_last_ping;
 } authenticated_neighbor_t;
 
 typedef enum {
