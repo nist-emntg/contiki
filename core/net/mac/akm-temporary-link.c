@@ -15,6 +15,8 @@
 #include  "packetbuf.h"
 #include "clock.h"
 
+void schedule_temp_link_timer();
+void stop_temp_link_timer();
 
 /*----------------------------------------------------------------------*/
 bool_t is_temp_link_available() {

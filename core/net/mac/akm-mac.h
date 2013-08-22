@@ -35,10 +35,10 @@
 #define AKM_PRINTADDR(addr)
 #endif
 
-#ifdef AKM_DEBUG
+#if defined(AKM_DEBUG) && defined(CONTIKI_TARGET_NATIVE)
 #define AKM_ABORT() exit(-1)
 #else
-#define AKM_ABORT
+#define AKM_ABORT() do {} while(0)
 #endif
 
 typedef enum {
@@ -300,7 +300,7 @@ typedef struct akm_data
 }akm_data_t;
 
 
-typedef enum {
+enum {
 	AKM_LOG_NODE_AUTH_STATE = 4,
 	AKM_LOG_PARENT_ID = 5
 };

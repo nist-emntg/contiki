@@ -140,7 +140,9 @@ static void insert_id(int location, nodeid_t* pNodeId,
 
 void akm_timer_set(akm_timer_t *c, clock_time_t t, void (*f)(void *), void *ptr, int datasize,
 		ttype_t timerType) {
+#ifdef AKM_DEBUG
 	AKM_PRINTF("akm_timer_set : %s %u \n",c->timername, t)
+#endif
 ;	if (t == 0) {
 		AKM_PRINTF("ERROR!! invalid param t cannot be zero!\n")
 ;
@@ -195,9 +197,11 @@ static void fire_timer(akm_timer_t* pakmTimer) {
 	if (pakmTimer->timer_state == TIMER_STATE_RUNNING) {
 		pakmTimer->current_count = (pakmTimer->current_count + 1)
 				% pakmTimer->interval;
+#ifdef AKM_DEBUG
 		AKM_PRINTF(
-				"timer:%s count %d\n",pakmTimer->timername,pakmTimer->current_count)
-;		if (pakmTimer->current_count == 0) {
+				"timer:%s count %d\n",pakmTimer->timername,pakmTimer->current_count);
+#endif
+		if (pakmTimer->current_count == 0) {
 			(*pakmTimer->f)(&pakmTimer->ptr);
 			if (pakmTimer->ttype == TTYPE_ONESHOT) {
 				pakmTimer->timer_state = TIMER_STATE_OFF;
@@ -639,13 +643,15 @@ int get_node_id_as_int(nodeid_t* pnodeId) {
 static void akm_sighandler(int signo) {
 	int i;
 	char logbuf[256];
+#ifdef AKM_DEBUG
 	for (i = 0; i < NELEMS(AKM_DATA.authenticated_neighbors); i++) {
 		AKM_PRINTF(
 				"%d state = %s Neighbor address = ",i,get_auth_state_as_string(AKM_DATA.authenticated_neighbors[i].state))
 ;		AKM_PRINTADDR(&AKM_DATA.authenticated_neighbors[i]);
 		char* authState = get_auth_state_as_string(AKM_DATA.authenticated_neighbors[i].state);
-		log_msg_two_nodes(AKM_LOG_NODE_AUTH_STATE, get_node_id_as_int(&AKM_DATA.authenticated_neighbors[i]),authState, strlen(authState));
+		log_msg_two_nodes(AKM_LOG_NODE_AUTH_STATE, get_node_id_as_int(&AKM_DATA.authenticated_neighbors[i].node_id),authState, strlen(authState));
 	}
+#endif
 	AKM_PRINTF("parents = {");
 
 	if (get_dodag_root() != NULL) {
