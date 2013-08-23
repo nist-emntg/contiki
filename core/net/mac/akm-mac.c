@@ -517,7 +517,7 @@ static void init(void) {
 	set_master_timer();
 
 	random_init(0);
-#ifdef AKM_DEBUG
+#if defined(AKM_DEBUG) && defined(CONTIKI_TARGET_NATIVE)
     set_sighandler(akm_sighandler);
 #endif
 
@@ -658,7 +658,6 @@ int get_node_id_as_int(nodeid_t* pnodeId) {
 static void akm_sighandler(int signo) {
 	int i;
 	char logbuf[256];
-#ifdef AKM_DEBUG
 	for (i = 0; i < NELEMS(AKM_DATA.authenticated_neighbors); i++) {
 		AKM_PRINTF(
 				"%d state = %s Neighbor address = ",i,get_auth_state_as_string(AKM_DATA.authenticated_neighbors[i].state))
@@ -666,7 +665,6 @@ static void akm_sighandler(int signo) {
 		char* authState = get_auth_state_as_string(AKM_DATA.authenticated_neighbors[i].state);
 		log_msg_two_nodes(AKM_LOG_NODE_AUTH_STATE, get_node_id_as_int(&AKM_DATA.authenticated_neighbors[i].node_id),authState, strlen(authState));
 	}
-#endif
 	AKM_PRINTF("parents = {");
 
 	if (get_dodag_root() != NULL) {
