@@ -83,6 +83,7 @@ bool_t set_authentication_state(nodeid_t* node_id,
 					if (!is_authenticated()) {
 						reset_beacon();
 					}
+					AKM_DATA.authenticated_neighbors[i].time_since_last_ping = 0;
 				}
 			}
 
