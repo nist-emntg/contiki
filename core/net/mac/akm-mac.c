@@ -654,7 +654,7 @@ int get_node_id_as_int(nodeid_t* pnodeId) {
 	return (int) pnodeId->u8[NELEMS(pnodeId->u8) -1];
 }
 /*---------------------------------------------------------------------------*/
-#ifdef AKM_DEBUG
+#if defined(AKM_DEBUG) && defined(CONTIKI_TARGET_NATIVE)
 static void akm_sighandler(int signo) {
 	int i;
 	char logbuf[256];
@@ -669,32 +669,28 @@ static void akm_sighandler(int signo) {
 
 	if (get_dodag_root() != NULL) {
 		rpl_parent_t* parent = rpl_get_first_parent(get_dodag_root());
-#ifdef CONTIKI_TARGET_NATIVE
 		int count = rpl_get_parent_count(get_dodag_root());
 		int* p = (uint16_t*) malloc( sizeof(uint16_t) * count);
-#endif
 		int i = 0;
 		while (parent != NULL) {
 			uip_ds6_nbr_t * neighbor = uip_ds6_nbr_lookup(&parent->addr);
 			//struct uip_neighbor_addr* pneighbor = uip_neighbor_lookup(&neighbor->ipaddr);
 			if (neighbor != NULL ) {
 				AKM_PRINTADDR((nodeid_t* ) &neighbor->lladdr);
-#ifdef CONTIKI_TARGET_NATIVE
 				p[i++] = get_node_id_as_int((nodeid_t*)&neighbor->lladdr);
-#endif
 			}
 
 			parent = parent->next;
 		}
-#ifdef CONTIKI_TARGET_NATIVE
 		p[count] = 0;
-		log_msg_many_nodes(AKM_LOG_PARENT_ID,p,"RPL ",0);
+		log_msg_many_nodes(AKM_LOG_PARENT_ID,p,"RPL",3);
 		free(p);
-#endif
 
 	}
 
 	AKM_PRINTF("}\n");
+	log_msg_one_node(LOG_SIM_END, NULL, 0);
+	exit(EXIT_SUCCESS);
 }
 #endif
 /*---------------------------------------------------------------------------*/
