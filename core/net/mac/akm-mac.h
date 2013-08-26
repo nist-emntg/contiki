@@ -339,7 +339,8 @@ bool_t is_redundant_parent_available();
 bool_t is_temp_link_available();
 void take_temporary_link();
 void reset_beacon();
-void schedule_send_challenge_timer(int time, nodeid_t* target,beacon_t* pbeacon);
+void schedule_send_challenge_timer(int time, nodeid_t* target,beacon_t* pbeacon,
+		auth_challenge_sc pstate);
 bool_t replace_authenticated_neighbor(nodeid_t *pauthNeighbor,
 		nodeid_t *newNeighbor, session_key_t* key);
 void add_authenticated_neighbor(nodeid_t* pnodeId,

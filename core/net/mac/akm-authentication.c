@@ -18,6 +18,7 @@
 struct do_send_challenge_data {
 	nodeid_t sender_id;
 	bool_t   is_sender_autheticated;
+	auth_challenge_sc status_code;
 };
 
 
@@ -83,7 +84,6 @@ bool_t set_authentication_state(nodeid_t* node_id,
 					if (!is_authenticated()) {
 						reset_beacon();
 					}
-					AKM_DATA.authenticated_neighbors[i].time_since_last_ping = 0;
 				}
 			}
 
@@ -127,28 +127,13 @@ void do_send_challenge(void* pvoid) {
 	AKM_PRINTF("do_send_challenge: target = ")
 ;	AKM_PRINTADDR(target);
 
+	AKM_MAC_OUTPUT.data.auth_challenge.status_code = pdata->status_code;
 	bool_t bSendChallenge = True;
-	if (is_capacity_available(target)) {
-		AKM_MAC_OUTPUT.data.auth_challenge.status_code = AUTH_SPACE_AVAILABLE;
-	} else if (is_redundant_parent_available()) {
-		if (is_temp_link_available()) {
-			take_temporary_link(target);
-			AKM_MAC_OUTPUT.data.auth_challenge.status_code =
-					AUTH_REDUNDANT_PARENT_AVAILABLE;
-		} else {
-			AKM_PRINTF("Temp link is not available - not sending challenge")
-;			bSendChallenge = False;
-		}
-	} else {
-		/* Do not form links with authenticated nodes when we do not have any resources */
-		if (is_temp_link_available() && !is_authenticated ) {
-			take_temporary_link(target);
-			AKM_MAC_OUTPUT.data.auth_challenge.status_code = AUTH_NO_SPACE;
-		} else {
-			AKM_PRINTF("Temp link is not available OR beacon sender is authenticated -- not sending challenge")
-;			bSendChallenge = False;
-		}
+	if ( pdata->status_code == AUTH_NO_SPACE && is_authenticated ) {
+		bSendChallenge = False;
 	}
+
+
 	/* For later : reduce the amount of searching by defining new index methods */
 	int i = find_authenticated_neighbor(target);
 	akm_timer_stop(&AKM_DATA.send_challenge_delay_timer[i]);
@@ -156,8 +141,6 @@ void do_send_challenge(void* pvoid) {
 		akm_send(target, AUTH_CHALLENGE,
 				sizeof(AKM_MAC_OUTPUT.data.auth_challenge));
 		set_authentication_state(target, CHALLENGE_SENT_WAITING_FOR_OK);
-
-
 	} else {
 		set_authentication_state(target, UNAUTHENTICATED);
 	}
@@ -166,20 +149,31 @@ void do_send_challenge(void* pvoid) {
 /*---------------------------------------------------------------------------*/
 void send_challenge(nodeid_t* target, beacon_t * pbeacon) {
 	int time;
-	add_authenticated_neighbor(target, NULL, PENDING_SEND_CHALLENGE);
 
-	if (is_capacity_available(target)) {
-		time = random_rand() % SPACE_AVAILABLE_TIMER;
-	} else if (is_authenticated() && is_redundant_parent_available()) {
+
+	if (is_capacity_available(NULL)) {
+		time = random_rand() % SPACE_AVAILABLE_TIMER + 1;
+		add_authenticated_neighbor(target, NULL, PENDING_SEND_CHALLENGE);
+		schedule_send_challenge_timer(time, target, pbeacon,AUTH_SPACE_AVAILABLE);
+	} else if (is_authenticated() && is_redundant_parent_available() && is_temp_link_available()) {
+		add_authenticated_neighbor(target, NULL, PENDING_SEND_CHALLENGE);
 		time = SPACE_AVAILABLE_TIMER
 				+ random_rand() % REDUNDANT_PARENT_AVAILABLE_TIMER;
-	} else {
+		take_temporary_link(target);
+		schedule_send_challenge_timer(time, target, pbeacon,AUTH_REDUNDANT_PARENT_AVAILABLE);
+
+	} else if ( is_temp_link_available() ) {
+		add_authenticated_neighbor(target, NULL, PENDING_SEND_CHALLENGE);
 		time = SPACE_AVAILABLE_TIMER + REDUNDANT_PARENT_AVAILABLE_TIMER
 				+ random_rand() % NO_SPACE_TIMER;
-		AKM_PRINTF("No space available delaying for %d \n ",time)
-;	}
+		AKM_PRINTF("No space available delaying for %d \n ",time);
+		take_temporary_link(target);
+		schedule_send_challenge_timer(time, target, pbeacon, AUTH_NO_SPACE);
+	} else {
+		AKM_PRINTF("temporary link is not available. current value is : ");
+		AKM_PRINTADDR(&AKM_DATA.temporaryLink);
+	}
 
-	schedule_send_challenge_timer(time, target, pbeacon);
 
 }
 
@@ -210,13 +204,15 @@ void handle_auth_challenge_response(auth_challenge_response_t* pacr) {
 	nodeid_t* sender_id = &AKM_DATA.sender_id;
 	AKM_PRINTF("handle_auth_challenge_response ")
 ;	AKM_PRINTADDR(sender_id);
+	auth_challenge_sc acr = pacr->request_status_code;
+	AKM_PRINTF("request_status_code = %d \n",acr);
 
 	if (!sec_verify_auth_response(pacr)) {
 		return;
 	} else {
 		session_key_t* key = &pacr->session_key;
 		if (AKM_DATA.is_dodag_root) {
-			if (is_capacity_available(NULL)) {
+			if (acr == AUTH_SPACE_AVAILABLE) {
 				if (set_authentication_state(sender_id, AUTHENTICATED)) {
 					send_auth_ack(sender_id, NULL);
 				} else {
@@ -228,14 +224,14 @@ void handle_auth_challenge_response(auth_challenge_response_t* pacr) {
 						BSA_CONTINUATION_NONE, NULL);
 			}
 		} else {
-			if (is_capacity_available(sender_id)) {
-				AKM_PRINTF("capacity is available -- take the slot.\n");
+			if (acr == AUTH_SPACE_AVAILABLE) {
 				if (get_authentication_state(sender_id)
 						== CHALLENGE_SENT_WAITING_FOR_OK) {
+					AKM_PRINTF("capacity is available -- take the slot.\n");
 					send_auth_ack(sender_id, NULL);
 					set_authentication_state(sender_id, AUTHENTICATED);
 				}
-			} else if (is_redundant_parent_available()) {
+			} else if (acr == AUTH_REDUNDANT_PARENT_AVAILABLE ) {
 				nodeid_t* pparent = get_parent_id();
 				/* A redundant paprent is available. So take that slot. */
 				send_auth_ack(sender_id, NULL);
@@ -324,7 +320,8 @@ void send_auth_ack(nodeid_t* target_id, nodeid_t * pparent) {
 }
 
 /*---------------------------------------------------------------------------*/
-void schedule_send_challenge_timer(int time, nodeid_t* target, beacon_t * pbeacon) {
+void schedule_send_challenge_timer(int time, nodeid_t* target,
+		beacon_t * pbeacon,auth_challenge_sc statusCode) {
 	AKM_PRINTF("schedule_send_challenge_timer %d ",time)
 ;	AKM_PRINTADDR(target);
 	int i = find_authenticated_neighbor(target);
@@ -333,6 +330,7 @@ void schedule_send_challenge_timer(int time, nodeid_t* target, beacon_t * pbeaco
 		struct do_send_challenge_data timerData;
 		rimeaddr_copy(&timerData.sender_id,target);
 		timerData.is_sender_autheticated = pbeacon->is_authenticated;
+		timerData.status_code = statusCode;
 		akm_timer_set(&AKM_DATA.send_challenge_delay_timer[i], time,
 				do_send_challenge, &timerData, sizeof(timerData), TTYPE_ONESHOT);
 	} else {

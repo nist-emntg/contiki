@@ -61,6 +61,9 @@ void schedule_temp_link_timer() {
 	int i = find_authenticated_neighbor(&AKM_DATA.temporaryLink);
 	if (i != -1) {
 		akm_timer_set(&AKM_DATA.auth_timer[i] ,time,drop_temporary_link,NULL,0,TTYPE_ONESHOT);
+	} else {
+		AKM_PRINTF("temporary link not in table ");
+		AKM_PRINTADDR(&AKM_DATA.temporaryLink);
 	}
 }
 
@@ -145,6 +148,9 @@ void handle_confirm_temporary_link_response(
 
 /*------------------------------------------------------------------------*/
 void drop_temporary_link() {
+	AKM_PRINTF("drop_temporary_link : temporaryLink = ");
+	AKM_PRINTADDR(&AKM_DATA.temporaryLink);
+	set_authentication_state(&AKM_DATA.temporaryLink,UNAUTHENTICATED);
 	memset(&AKM_DATA.temporaryLink,sizeof(nodeid_t),0);
 }
 /*------------------------------------------------------------------------*/
