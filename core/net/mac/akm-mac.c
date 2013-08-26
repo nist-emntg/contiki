@@ -93,7 +93,6 @@ nodeid_t * get_parent_id() {
 bool_t is_nodeid_zero(nodeid_t* pnodeId) {
 	return rimeaddr_cmp(pnodeId, &rimeaddr_null);
 }
-/*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
 bool_t is_capacity_available(nodeid_t* pnode) {
@@ -103,7 +102,13 @@ bool_t is_capacity_available(nodeid_t* pnode) {
 		if (AKM_DATA.authenticated_neighbors[i].state == UNAUTHENTICATED) {
 			capacityCount++;
 		} else if (pnode != NULL &&
-				rimeaddr_cmp(&AKM_DATA.authenticated_neighbors[i].node_id,pnode)) {
+				rimeaddr_cmp(&AKM_DATA.authenticated_neighbors[i].node_id,pnode) &&
+				AKM_DATA.authenticated_neighbors[i].state == PENDING_SEND_CHALLENGE ) {
+			    AKM_PRINTF("Already assigned a state %s to the slot. Capacity count is %d  returning True\n",
+					get_auth_state_as_string(AKM_DATA.authenticated_neighbors[i].state),
+					capacityCount);
+			AKM_PRINTF("temporaryLink = ");
+			AKM_PRINTADDR(&AKM_DATA.temporaryLink);
 			return True;
 		}
 	}
