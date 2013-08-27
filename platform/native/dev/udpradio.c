@@ -170,6 +170,10 @@ PROCESS_END();
 /*----------------------------------------------------------------------------*/
 void default_signal_catcher(int signo) {
 	PRINTF("Caught a signal %d - exiting\n",signo);
+	if (signo == SIGINT) {
+		PRINTF("Disabling signal handler\n",signo);
+		signal(signo, SIG_IGN);
+	}
 	log_msg_one_node(LOG_SIM_END, "", 0);
 	exit(EXIT_SUCCESS);
 }
