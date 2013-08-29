@@ -150,7 +150,8 @@ void do_send_challenge(void* pvoid) {
 void send_challenge(nodeid_t* target, beacon_t * pbeacon) {
 	int time;
 
-
+	AKM_PRINTF("send_challenge : target = ");
+	AKM_PRINTADDR(target);
 	if (is_capacity_available(NULL)) {
 		time = random_rand() % SPACE_AVAILABLE_TIMER + 1;
 		add_authenticated_neighbor(target, NULL, PENDING_SEND_CHALLENGE);
@@ -205,7 +206,7 @@ void handle_auth_challenge_response(auth_challenge_response_t* pacr) {
 	AKM_PRINTF("handle_auth_challenge_response ")
 ;	AKM_PRINTADDR(sender_id);
 	auth_challenge_sc acr = pacr->request_status_code;
-	AKM_PRINTF("request_status_code = %d \n",acr);
+	AKM_PRINTF("request_status_code = %s \n",AUTH_STATUS_CODE_AS_STRING(acr));
 
 	if (!sec_verify_auth_response(pacr)) {
 		return;
@@ -232,12 +233,12 @@ void handle_auth_challenge_response(auth_challenge_response_t* pacr) {
 					set_authentication_state(sender_id, AUTHENTICATED);
 				}
 			} else if (acr == AUTH_REDUNDANT_PARENT_AVAILABLE ) {
-				nodeid_t* pparent = get_parent_id();
 				/* A redundant paprent is available. So take that slot. */
 				send_auth_ack(sender_id, NULL);
 				/* Break the security assoc. with my parent.
 				 * Child now owns the slot
 				 */
+				nodeid_t* pparent = get_parent_id();
 				AKM_PRINTF(
 						"breaking security association with redundant parent")
 ;				AKM_PRINTADDR(pparent);
@@ -246,9 +247,10 @@ void handle_auth_challenge_response(auth_challenge_response_t* pacr) {
 				send_break_security_association(pparent, BSA_CONTINUATION_NONE,
 						0);
 			} else {
+				nodeid_t* pparent = get_parent_id();
 				/* Redundant parent is not available */
-				AKM_PRINTF("redundant parent NOT available.\n")
-;				nodeid_t* pparent = get_parent_id();
+				AKM_PRINTF("redundant parent NOT available. parent id is \n");
+				AKM_PRINTADDR(pparent);
 				/* Send the parent along to the child so he may identify
 				 * a pair between which to insert himself.
 				 */
@@ -278,13 +280,20 @@ void handle_auth_ack(auth_ack_t* pauthAck) {
 	} else {
 		bool_t foundInParentCache = False;
 		int i = 0;
+		AKM_PRINTF("checking parent cache for ");
+		AKM_PRINTADDR(&pauthAck->parent_id);
 		for (i = 0; i < NELEMS(AKM_DATA.parent_cache); i++) {
 			if (rimeaddr_cmp(&pauthAck->parent_id, &AKM_DATA.parent_cache[i])) {
 				foundInParentCache = True;
+				break;
 			}
 		}
 		if (foundInParentCache) {
-			if (get_authentication_state(sender) == OK_SENT_WAITING_FOR_ACK) {
+			AKM_PRINTF("Found in parent cache. parent auth state is %s\n",
+					get_auth_state_as_string(get_authentication_state
+							(&pauthAck->parent_id)));
+			if (get_authentication_state(sender) == AUTH_PENDING &&
+					get_authentication_state(&pauthAck->parent_id) == AUTH_PENDING ) {
 				set_authentication_state(sender, AUTH_PENDING);
 				send_insert_node_request(sender, &pauthAck->parent_id);
 			}
@@ -304,6 +313,8 @@ void handle_auth_ack(auth_ack_t* pauthAck) {
 void send_auth_ack(nodeid_t* target_id, nodeid_t * pparent) {
 	AKM_PRINTF("send_auth_ack : ")
 ;	AKM_PRINTADDR(target_id);
+	AKM_PRINTF("parent_id = ");
+	AKM_PRINTADDR(pparent);
 	sec_generate_session_key(target_id);
 	if (AKM_DATA.is_dodag_root) {
 		memset(&AKM_MAC_OUTPUT.data.auth_ack.parent_id, 0, sizeof(nodeid_t));

@@ -77,6 +77,12 @@ void stop_temp_link_timer() {
 /*---------------------------------------------------------------------------*/
 void send_confirm_temporary_link(nodeid_t* target, nodeid_t* parent,
 		nodeid_t* child){
+	AKM_PRINTF("send_confirm_temporary_link: target = ");
+	AKM_PRINTADDR(target);
+	AKM_PRINTF("send_confirm_temporary_link: parent = ");
+	AKM_PRINTADDR(parent);
+	AKM_PRINTF("send_confirm_temporary_link: child = ");
+	AKM_PRINTADDR(child);
 	memcpy(&AKM_MAC_OUTPUT.data.confirm_temp_link_request.parent_id, parent,
 			sizeof(nodeid_t));
 	memcpy(&AKM_MAC_OUTPUT.data.confirm_temp_link_request.child_id,child,
@@ -106,17 +112,29 @@ void handle_confirm_temporary_link( confirm_temporary_link_request_t* ctl)
 {
 
 	nodeid_t* sender_id = & AKM_DATA.sender_id;
-	AKM_PRINTF("handle_confirm_temporary_link : ");
+	AKM_PRINTF("handle_confirm_temporary_link : senderId = ");
 	AKM_PRINTADDR(sender_id);
 
 	nodeid_t* parentId = &ctl->parent_id;
-	nodeid_t* childId = sender_id;
+	nodeid_t* childId = &ctl->child_id;
+
+	AKM_PRINTF("hande_confirm_temporary_link : parentId  = ");
+	AKM_PRINTADDR(parentId);
+
+	AKM_PRINTF("handle_confirm_temporary_link : childId = ");
+	AKM_PRINTADDR(childId);
+
+	if (!rimeaddr_cmp(sender_id,parentId)) {
+		AKM_PRINTF("Expected to get this message from the parent");
+		AKM_ABORT();
+	}
 
 	if ( get_authentication_state(parentId) == AUTH_PENDING &&
 			get_authentication_state(childId) == AUTH_PENDING) {
-
+		/* Change the state to authenticated */
 		set_authentication_state(parentId,AUTHENTICATED);
 		set_authentication_state(childId,AUTHENTICATED);
+		/* Copy the state back to sender of the request so he can forward it back*/
 		AKM_MAC_OUTPUT.data.confirm_temp_link_response.status_code = CTL_OK;
 		rimeaddr_copy(&AKM_MAC_OUTPUT.data.confirm_temp_link_response.child_id,&ctl->child_id);
 		rimeaddr_copy(&AKM_MAC_OUTPUT.data.confirm_temp_link_response.parent_id,&ctl->parent_id);
@@ -130,7 +148,8 @@ void handle_confirm_temporary_link( confirm_temporary_link_request_t* ctl)
 void handle_confirm_temporary_link_response(
 		confirm_temporary_link_response_t* ctlr){
 	nodeid_t* sender_id = &AKM_DATA.sender_id;
-	AKM_PRINTF("handle_confirm_temporary_link_response : ");
+	AKM_PRINTF("handle_confirm_temporary_link_response continuation = %s: ",
+			GET_CTL_CONTINUATION_AS_STRING(ctlr->continuation));
 	AKM_PRINTADDR(sender_id);
 	nodeid_t* parentid = &ctlr->parent_id;
 	nodeid_t* childid= &ctlr->child_id;
