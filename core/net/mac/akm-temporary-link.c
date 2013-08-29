@@ -148,7 +148,8 @@ void handle_confirm_temporary_link( confirm_temporary_link_request_t* ctl)
 void handle_confirm_temporary_link_response(
 		confirm_temporary_link_response_t* ctlr){
 	nodeid_t* sender_id = &AKM_DATA.sender_id;
-	AKM_PRINTF("handle_confirm_temporary_link_response : ");
+	AKM_PRINTF("handle_confirm_temporary_link_response continuation = %s: ",
+			GET_CTL_CONTINUATION_AS_STRING(ctlr->continuation));
 	AKM_PRINTADDR(sender_id);
 	nodeid_t* parentid = &ctlr->parent_id;
 	nodeid_t* childid= &ctlr->child_id;

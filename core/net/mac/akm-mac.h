@@ -182,6 +182,12 @@ typedef struct auth_ack {
 	CTL_CONTINUATION_BREAK_SECURITY_ASSOCIATION_REPLY
 } ctl_continuation;
 
+#define GET_CTL_CONTINUATION_AS_STRING(x) 								\
+	( x == CTL_CONTINUATION_NONE ? "CTL_CONTINUATION_NONE" : 			\
+			(x == CTL_CONTINUATION_BREAK_SECURITY_ASSOCIATION_REPLY? 	\
+			"CTL_CONTINUATION_BREAK_SECURITY_ASSOCIATION_REPLY" : 		\
+			"UNKNOWN CONTINUATION") )
+
 typedef struct confirm_temporary_link_request {
 	ctl_continuation ctl_continuation;
 	nodeid_t child_id;
