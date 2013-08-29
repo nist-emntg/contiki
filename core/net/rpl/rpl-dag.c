@@ -733,7 +733,7 @@ rpl_select_redundant_parent(rpl_dag_t *dag)
 
 
   for(p = list_head(dag->parents); p != NULL; p = p->next) {
-    if(p->rank == INFINITE_RANK) {
+    if(p->rank == INFINITE_RANK  ) {
       /* ignore this neighbor */
     }  else {
       if (p != dag->instance->of->best_parent(best, p) ) {
@@ -1159,6 +1159,8 @@ rpl_process_dio(uip_ipaddr_t *from, rpl_dio_t *dio)
   rpl_dag_t *dag, *previous_dag;
   rpl_parent_t *p;
 
+  PRINTF("RPL: rpl_process_dio: rank = %du ",dio->rank);
+
   if(dio->mop != RPL_MOP_DEFAULT) {
     PRINTF("RPL: Ignoring a DIO with an unsupported MOP: %d\n", dio->mop);
     return;
@@ -1208,7 +1210,6 @@ rpl_process_dio(uip_ipaddr_t *from, rpl_dio_t *dio)
     rpl_add_dag(from, dio);
     return;
   }
-
 
   if(dio->rank < ROOT_RANK(instance)) {
     PRINTF("RPL: Ignoring DIO with too low rank: %u\n",
@@ -1308,7 +1309,7 @@ rpl_get_parent_count(rpl_dag_t *dag) {
 	int count = 0;
 
 	for(p = list_head(dag->parents); p != NULL; p = p->next) {
-		count++;
+		if (p->rank < dag->rank ) count++;
 	}
 	return count;
 }
