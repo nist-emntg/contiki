@@ -45,8 +45,10 @@
 
 #if defined(AKM_DEBUG) && defined(CONTIKI_TARGET_NATIVE)
 #define AKM_ABORT() exit(-1)
+#define AKM_ASSERT(cond,msg) if (!cond) { printf(msg); exit(-1); }
 #else
 #define AKM_ABORT() do {} while(0)
+#define AKM_ASSERT(cond,msg)
 #endif
 
 typedef enum {
@@ -144,15 +146,19 @@ typedef struct beacon_header {
 
 
 
-typedef enum  {
+ typedef enum  {
 	AUTH_SPACE_AVAILABLE = 1,
 	AUTH_REDUNDANT_PARENT_AVAILABLE = 2,
 	AUTH_NO_SPACE = 3
 } auth_challenge_sc;
 
+#define AUTH_STATUS_CODE_AS_STRING(a)  ( a == 1 ? "AUTH_SPACE_AVAILABLE" : \
+										(a == 2 ? "AUTH_REDUNDANT_PARENT_AVAILABLE" : \
+										"AUTH_NO_SPACE" ))
 
 
-typedef struct auth_challenge {
+
+typedef struct  {
 	auth_challenge_sc status_code; /* Indicates space availability of sender */
 } auth_challenge_request_t;
 
@@ -167,14 +173,15 @@ typedef struct auth_ack {
 } auth_ack_t;
 
 
-typedef enum {
+ typedef enum {
 	BSA_OK=1, BSA_NOK=2
 } bsa_status_code;
 
-typedef enum {
+ typedef enum {
 	CTL_CONTINUATION_NONE,
 	CTL_CONTINUATION_BREAK_SECURITY_ASSOCIATION_REPLY
 } ctl_continuation;
+
 typedef struct confirm_temporary_link_request {
 	ctl_continuation ctl_continuation;
 	nodeid_t child_id;
@@ -383,11 +390,9 @@ void akm_timer_set(akm_timer_t *c, clock_time_t t, void (*f)(void *), void *ptr,
 void akm_timer_reset(akm_timer_t* c);
 void akm_timer_stop(akm_timer_t* c);
 rpl_parent_t *rpl_get_first_parent(rpl_dag_t* dag) ;
-
+void handle_insert_node_request(insert_node_request_t* pinsertNode);
 void schedule_waiting_for_ack_timeout(nodeid_t *target);
-
-
-
+void schedule_beacon(void) ;
 
 #ifdef AKM_DEBUG
 extern void set_sighandler(void (*handler)(int) );

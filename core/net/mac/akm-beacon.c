@@ -32,17 +32,32 @@ void handle_beacon(beacon_t *pbeacon) {
 			send_challenge(senderId,pbeacon);
 		}
 	} else {
-		AKM_PRINTF("is_authenticated sender = %d is_part_of_dodag = %d\n",
-				pbeacon->is_authenticated,is_part_of_dodag());
+		AKM_PRINTF (
+				"is_authenticated sender = %d is_part_of_dodag = %d sender auth state is %s\n",
+				pbeacon->is_authenticated,is_part_of_dodag(),
+				get_auth_state_as_string(get_authentication_state(senderId)));
 		if (is_part_of_dodag()) {
-			if (get_authentication_state(senderId) == UNAUTHENTICATED &&
-				(!pbeacon->is_authenticated ||
-				(pbeacon->is_capacity_available && is_capacity_available(senderId)))){
-				send_challenge(senderId,pbeacon);
-			} else if ( get_authentication_state(senderId) == AUTHENTICATED) {
+			if (get_authentication_state(senderId) == AUTH_PENDING) {
+				/* Already authenticated him so just resend the ack */
+				nodeid_t* pparent = get_parent_id();
+				/* Redundant parent is not available */
+				AKM_PRINTF(
+						"handle_beacon: node is AUTH_PENDING - resend ACK. parent is  \n");
+				AKM_PRINTADDR(pparent);
+				/* Send the parent along to the child so he may identify
+				 * a pair between which to insert himself.
+				 */
+				send_auth_ack(senderId, pparent);
+			} else if (get_authentication_state(senderId) == UNAUTHENTICATED
+					&& (!pbeacon->is_authenticated
+							|| (pbeacon->is_capacity_available
+									&& is_capacity_available(senderId)))) {
+				send_challenge(senderId, pbeacon);
+			} else if (get_authentication_state(senderId) == AUTHENTICATED) {
 				int i = find_authenticated_neighbor(senderId);
-				if ( -1 != i) {
-					AKM_DATA.authenticated_neighbors[i].time_since_last_ping = 0;
+				if (-1 != i) {
+					AKM_DATA.authenticated_neighbors[i].time_since_last_ping =
+							0;
 				}
 			}
 		}
@@ -58,13 +73,13 @@ static void handle_beacon_timer(void* ptr) {
 /*-------------------------------------------------------------------------*/
 static clock_time_t get_beacon_interval() {
 	/* Schedule a  beacon message */
-		if (!is_authenticated() && !isAuthenticationInPending()) {
-			return BEACON_TIMER_INTERVAL ;
-		} else if (is_capacity_available(NULL)){
-			return BEACON_TIMER_AUTH_INTERVAL ;
-		} else {
-			return BEACON_TIMER_IDLE_INTERVAL;
-		}
+	if (!is_authenticated()) {
+		return BEACON_TIMER_INTERVAL;
+	} else if (is_capacity_available(NULL)) {
+		return BEACON_TIMER_AUTH_INTERVAL;
+	} else {
+		return BEACON_TIMER_IDLE_INTERVAL;
+	}
 }
 /*--------------------------------------------------------------------------*/
 void reset_beacon( void ) {

@@ -15,41 +15,52 @@
 #include "clock.h"
 
 /*---------------------------------------------------------------------------*/
-void handle_insert_node_request(nodeid_t * senderId,
+void handle_insert_node_request(
 		insert_node_request_t* pinsertNode) {
-	AKM_PRINTF("handle_insert_node_request: ");
+	nodeid_t* senderId = & AKM_DATA.sender_id;
+
+	AKM_PRINTF("handle_insert_node_request: senderId =  ");
 	AKM_PRINTADDR(senderId);
 	nodeid_t* parentId = &pinsertNode->parent_id;
 	nodeid_t* childId = &pinsertNode->child_id;
 	nodeid_t* myId = getNodeId();
 	nodeid_t* requesting_nodeId = &pinsertNode->requesting_node_id;
+	AKM_PRINTF("parentId = ");
+	AKM_PRINTADDR(parentId);
+	AKM_PRINTF("childId = ");
+	AKM_PRINTADDR(childId);
 
-	if (!rimeaddr_cmp(&AKM_DATA.temporaryLink,senderId) ) {
-		AKM_PRINTF("Not a temporary link");
-		return;
-	}
+
 	if (rimeaddr_cmp(myId,parentId)){
 		/* I am the parent node */
-		if (temporary_link_exists()) {
-			AKM_PRINTF("temporary link exists ");
-			send_confirm_temporary_link(senderId,myId,childId);
+		AKM_PRINTF("I am the parent \n");
+		if (get_authentication_state(requesting_nodeId) == AUTH_PENDING) {
+			send_confirm_temporary_link(requesting_nodeId,myId,childId);
+		} else {
+			AKM_PRINTF("authentication_state is %s \n",
+					get_auth_state_as_string(get_authentication_state(requesting_nodeId)));
 		}
 	} else {
 		/* I am the child - forward the request to the parent. */
 		/* Child gets the request first and forwards it */
 		if (is_nodeid_in_parent_list(parentId)) {
+			AKM_PRINTF("I am the child -- forwarding the request \n");
 			rimeaddr_copy(&AKM_MAC_OUTPUT.data.insert_node.requesting_node_id,senderId);
 			rimeaddr_copy(&AKM_MAC_OUTPUT.data.insert_node.parent_id,parentId);
 			rimeaddr_copy(&AKM_MAC_OUTPUT.data.insert_node.child_id,myId);
 			akm_send(parentId,INSERT_NODE_REQUEST,sizeof(insert_node_request_t));
+		} else {
+			PRINT_ERROR("I am neither the parent nor the child! OOPS!!");
+			AKM_ABORT();
 		}
 	}
 }
 /*---------------------------------------------------------------------------*/
 void
 send_insert_node_request(nodeid_t* target,nodeid_t* parentId) {
-	AKM_PRINTF("send_insert_node_request: targetId ");
+	AKM_PRINTF("send_insert_node_request: targetId = ");
 	AKM_PRINTADDR(target);
+	AKM_PRINTF("send_insert_node_request: parentId = ");
 	AKM_PRINTADDR(parentId);
 	memcpy(&AKM_MAC_OUTPUT.data.insert_node.requesting_node_id,getNodeId(),sizeof(nodeid_t));
 	memcpy(&AKM_MAC_OUTPUT.data.insert_node.parent_id, parentId,sizeof(nodeid_t));
