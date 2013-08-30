@@ -474,7 +474,6 @@ void akm_route_message() {
 				&pakm_mac->data.confirm_temp_link_request);
 		break;
 
-
 	case INSERT_NODE_REQUEST:
 		handle_insert_node_request(&pakm_mac->data.insert_node);
 		break;
@@ -651,7 +650,6 @@ int get_node_id_as_int(nodeid_t* pnodeId) {
 #if defined(AKM_DEBUG) && defined(CONTIKI_TARGET_NATIVE)
 static void akm_sighandler(int signo) {
 	int i;
-	char logbuf[256];
 	for (i = 0; i < NELEMS(AKM_DATA.authenticated_neighbors); i++) {
 		AKM_PRINTF(
 				"%d state = %s Neighbor address = ",i,get_auth_state_as_string(AKM_DATA.authenticated_neighbors[i].state))
