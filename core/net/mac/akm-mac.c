@@ -468,19 +468,12 @@ void akm_route_message() {
 		handle_break_security_association(&pakm_mac->data.bsa_request);
 		break;
 
-	case BREAK_SECURITY_ASSOCIATION_REPLY:
-		handle_break_security_association_reply(&pakm_mac->data.bsa_reply);
-		break;
 
 	case CONFIRM_TEMPORARY_LINK_REQUEST:
 		handle_confirm_temporary_link(
 				&pakm_mac->data.confirm_temp_link_request);
 		break;
 
-	case CONFIRM_TEMPORARY_LINK_RESPONSE:
-		handle_confirm_temporary_link_response(
-				&pakm_mac->data.confirm_temp_link_response);
-		break;
 
 	case INSERT_NODE_REQUEST:
 		handle_insert_node_request(&pakm_mac->data.insert_node);

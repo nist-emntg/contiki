@@ -31,7 +31,7 @@
 #endif /* CONTIKI_TARGET_NATIVE */
 #define AKM_PRINTADDR(addr)\
 	if ( addr == NULL) {  \
-		printf ("NULL"); \
+		printf ("NULL\n"); \
 	} else {\
 	printf(" %02x%02x:%02x%02x:%02x%02x:%02x%02x \n", \
 	((uint8_t *)addr)[0], ((uint8_t *)addr)[1], \
@@ -60,7 +60,7 @@ typedef enum {
     BREAK_SECURITY_ASSOCIATION_REPLY = 6,
     INSERT_NODE_REQUEST = 7,
     CONFIRM_TEMPORARY_LINK_REQUEST = 8,
-    CONFIRM_TEMPORARY_LINK_RESPONSE = 9,
+    BREEAK_PARENT_LINK = 9,
     BEACON = 10,
 } akm_op_t;
 
@@ -218,6 +218,11 @@ typedef enum {
      BSA_CONTINUATION_INSERT_NODE = 2
 
 } bsa_continuation;
+
+#define GET_BSA_CONTINUATION_AS_STRING(x) \
+	(x == BSA_CONTINUATION_NONE ? "BSA_CONTINUATION_NONE" : \
+		( x == BSA_CONTINUATION_INSERT_NODE ? "BSA_CONTINUATION_INSERT_NODE" : \
+				"UNKNOWN"))
 
 typedef struct  {
 	bsa_status_code status_code;
@@ -377,7 +382,7 @@ void send_break_security_association(nodeid_t* target, bsa_continuation continua
 bool_t sec_verify_auth_response(auth_challenge_response_t *pauthResponse);
 bool_t sec_verify_auth_request(auth_challenge_request_t* pauthChallengeRequest);
 int find_authenticated_neighbor(nodeid_t* target);
-void send_confirm_temporary_link(nodeid_t* target, nodeid_t* parent, nodeid_t* child);
+void send_confirm_temporary_link(nodeid_t* target, nodeid_t* parentId, nodeid_t* child);
 void remove_parent(nodeid_t* parent_nodeid);
 void drop_temporary_link();
 bool_t set_authentication_state(nodeid_t* node_id, authentication_state authState);
