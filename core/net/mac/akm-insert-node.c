@@ -35,7 +35,7 @@ void handle_insert_node_request(
 		/* I am the parent node */
 		AKM_PRINTF("I am the parent \n");
 		if (get_authentication_state(requesting_nodeId) == AUTH_PENDING) {
-			send_confirm_temporary_link(requesting_nodeId,myId,childId);
+			send_confirm_temporary_link(requesting_nodeId,NULL,childId);
 		} else {
 			AKM_PRINTF("authentication_state is %s \n",
 					get_auth_state_as_string(get_authentication_state(requesting_nodeId)));

@@ -29,6 +29,7 @@ void handle_beacon(beacon_t *pbeacon) {
 	AKM_PRINTADDR(senderId);
 	if (AKM_DATA.is_dodag_root) {
 		if (!is_neighbor_authenticated(senderId)) {
+			set_authentication_state(senderId,UNAUTHENTICATED);
 			send_challenge(senderId,pbeacon);
 		}
 	} else {
