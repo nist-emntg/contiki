@@ -78,10 +78,6 @@ void stop_temp_link_timer() {
 /*---------------------------------------------------------------------------*/
 void send_confirm_temporary_link(nodeid_t* target, nodeid_t* parent,
 		nodeid_t* child) {
-	AKM_PRINTF("send_confirm_temporary_link: target = ");
-	AKM_PRINTADDR(target);
-	AKM_PRINTF("send_confirm_temporary_link: child = ");
-	AKM_PRINTADDR(child);
 	if (child != NULL) {
 		memcpy(&AKM_MAC_OUTPUT.data.confirm_temp_link_request.child_id, child,
 				sizeof(nodeid_t));
@@ -107,10 +103,6 @@ void send_confirm_temporary_link(nodeid_t* target, nodeid_t* parent,
 	AKM_PRINTADDR(parent);
 	AKM_PRINTF("send_confirm_temporary_link: child = ");
 	AKM_PRINTADDR(child);
-	memcpy(&AKM_MAC_OUTPUT.data.confirm_temp_link_request.parent_id, parent,
-			sizeof(nodeid_t));
-	memcpy(&AKM_MAC_OUTPUT.data.confirm_temp_link_request.child_id,child,
-			sizeof(nodeid_t));
 	akm_send(target,CONFIRM_TEMPORARY_LINK_REQUEST, sizeof(AKM_MAC_OUTPUT.data.confirm_temp_link_request));
 }
 
