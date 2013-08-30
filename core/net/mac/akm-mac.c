@@ -479,6 +479,10 @@ void akm_route_message() {
 		handle_insert_node_request(&pakm_mac->data.insert_node);
 		break;
 
+	case INSERT_NODE_REQUEST:
+		handle_insert_node_request(&pakm_mac->data.insert_node);
+		break;
+
 	default:
 		PRINT_ERROR("akm_route_message:Not implemented\n")
 		;
