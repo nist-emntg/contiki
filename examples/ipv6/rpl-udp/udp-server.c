@@ -161,7 +161,7 @@ PROCESS_THREAD(udp_server_process, ev, data)
   PRINT6ADDR(&server_conn->ripaddr);
   PRINTF(" local/remote port %u/%u\n", UIP_HTONS(server_conn->lport),
          UIP_HTONS(server_conn->rport));
-
+  schedule_beacon();
   while(1) {
     PROCESS_YIELD();
     if(ev == tcpip_event) {
