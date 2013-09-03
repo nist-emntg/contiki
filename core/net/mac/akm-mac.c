@@ -218,10 +218,12 @@ static void check_and_restart(void *ptr) {
 		if (AKM_DATA.authenticated_neighbors[i].state == AUTHENTICATED) {
 			AKM_DATA.authenticated_neighbors[i].time_since_last_ping++;
 			if (AKM_DATA.authenticated_neighbors[i].time_since_last_ping
-					> 2 * BEACON_TIMER_IDLE_INTERVAL) {
-				send_break_security_association(
-						&AKM_DATA.authenticated_neighbors[i].node_id,
-						BSA_CONTINUATION_NONE, NULL);
+					>  2*BEACON_TIMER_IDLE_INTERVAL) {
+				AKM_PRINTF("FAILED node detected- removing him from the list : ");
+				AKM_PRINTADDR(&AKM_DATA.authenticated_neighbors[i].node_id);
+				AKM_DATA.authenticated_neighbors[i].time_since_last_ping = 0;
+				set_authentication_state
+				(&AKM_DATA.authenticated_neighbors[i].node_id,UNAUTHENTICATED);
 			}
 		}
 	}
@@ -499,6 +501,7 @@ static void init(void) {
 
 	/* set the master timer running*/
 	set_master_timer();
+
 
 	random_init(0);
 #if defined(AKM_DEBUG) && defined(CONTIKI_TARGET_NATIVE)

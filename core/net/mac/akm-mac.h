@@ -52,22 +52,19 @@
 #endif
 
 typedef enum {
-	CYCLE_DETECT   = 1,
-	AUTH_CHALLENGE = 2,
-    AUTH_CHALLENGE_RESPONSE = 3,
-    AUTH_ACK =  4,
-    BREAK_SECURITY_ASSOCIATION_REQUEST = 5,
-    BREAK_SECURITY_ASSOCIATION_REPLY = 6,
-    INSERT_NODE_REQUEST = 7,
-    CONFIRM_TEMPORARY_LINK_REQUEST = 8,
-    BREEAK_PARENT_LINK = 9,
-    BEACON = 10,
+	AUTH_CHALLENGE = 1,
+    AUTH_CHALLENGE_RESPONSE = 2,
+    AUTH_ACK =  3,
+    BREAK_SECURITY_ASSOCIATION_REQUEST = 4,
+    INSERT_NODE_REQUEST = 5,
+    CONFIRM_TEMPORARY_LINK_REQUEST = 6,
+    BEACON = 7,
 } akm_op_t;
 
 /* MARTA related constants */
 #define BEACON_TIMER_INTERVAL     			5
 #define BEACON_TIMER_AUTH_INTERVAL          10
-#define BEACON_TIMER_IDLE_INTERVAL          600
+#define BEACON_TIMER_IDLE_INTERVAL          75
 #define TEMP_LINK_TIMER                     30
 #define PENDING_AUTH_TIMEOUT         		30
 #define SPACE_AVAILABLE_TIMER               5
@@ -179,14 +176,11 @@ typedef struct auth_ack {
 
  typedef enum {
 	CTL_CONTINUATION_NONE,
-	CTL_CONTINUATION_BREAK_SECURITY_ASSOCIATION_REPLY
 } ctl_continuation;
 
 #define GET_CTL_CONTINUATION_AS_STRING(x) 								\
 	( x == CTL_CONTINUATION_NONE ? "CTL_CONTINUATION_NONE" : 			\
-			(x == CTL_CONTINUATION_BREAK_SECURITY_ASSOCIATION_REPLY? 	\
-			"CTL_CONTINUATION_BREAK_SECURITY_ASSOCIATION_REPLY" : 		\
-			"UNKNOWN CONTINUATION") )
+			"UNKNOWN CONTINUATION" )
 
 typedef struct confirm_temporary_link_request {
 	ctl_continuation ctl_continuation;
@@ -224,10 +218,6 @@ typedef enum {
 		( x == BSA_CONTINUATION_INSERT_NODE ? "BSA_CONTINUATION_INSERT_NODE" : \
 				"UNKNOWN"))
 
-typedef struct  {
-	bsa_status_code status_code;
-	nodeid_t requesting_node_id;
-} break_security_association_reply_t;
 
 typedef struct {
 	bsa_continuation continuation;
@@ -243,9 +233,7 @@ typedef struct akm_mac {
 		auth_ack_t auth_ack;
 		insert_node_request_t insert_node;
 		break_security_association_request_t bsa_request;
-		break_security_association_reply_t bsa_reply;
 		confirm_temporary_link_request_t confirm_temp_link_request;
-		confirm_temporary_link_response_t confirm_temp_link_response;
 	}data;
 }akm_mac_t;
 
@@ -347,7 +335,6 @@ void handle_auth_challenge(auth_challenge_request_t* pauthChallenge);
 void handle_beacon(beacon_t *pbeacon);
 void handle_auth_challenge_response(auth_challenge_response_t *pauthChallengeResponse);
 void handle_break_security_association(break_security_association_request_t* pbsa);
-void handle_break_security_association_reply(break_security_association_reply_t* msg);
 void handle_confirm_temporary_link(confirm_temporary_link_request_t* ctl);
 bool_t is_capacity_available(nodeid_t* target) ;
 bool_t is_authenticated();

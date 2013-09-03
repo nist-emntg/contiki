@@ -211,7 +211,6 @@ void handle_auth_challenge_response(auth_challenge_response_t* pacr) {
 	if (!sec_verify_auth_response(pacr)) {
 		return;
 	} else {
-		session_key_t* key = &pacr->session_key;
 		if (AKM_DATA.is_dodag_root) {
 			if (acr == AUTH_SPACE_AVAILABLE) {
 				if (set_authentication_state(sender_id, AUTHENTICATED)) {
