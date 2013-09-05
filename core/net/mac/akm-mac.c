@@ -524,7 +524,7 @@ char* get_auth_state_as_string(authentication_state auth_state) {
 	case PENDING_SEND_CHALLENGE:
 		return "PENDING_SEND_CHALLENGE";
 	case CHALLENGE_SENT_WAITING_FOR_OK:
-		return "CHALLENGE_SENT_WAITING_FOR_OK ";
+		return "CHALLENGE_SENT_WAITING_FOR_OK";
 	case OK_SENT_WAITING_FOR_ACK:
 		return "OK_SENT_WAITING_FOR_ACK";
 	case AUTH_PENDING:
@@ -664,7 +664,7 @@ static void akm_sighandler(int signo) {
 				"%d state = %s Neighbor address = ",i,get_auth_state_as_string(AKM_DATA.authenticated_neighbors[i].state))
 		; AKM_PRINTADDR(&AKM_DATA.authenticated_neighbors[i]);
 		char* authState = get_auth_state_as_string(AKM_DATA.authenticated_neighbors[i].state);
-		log_msg_two_nodes(AKM_LOG_LINK_AUTH_STATE, get_node_id_as_int(&AKM_DATA.authenticated_neighbors[i].node_id),authState, strlen(authState));
+		//log_msg_two_nodes(AKM_LOG_LINK_AUTH_STATE, get_node_id_as_int(&AKM_DATA.authenticated_neighbors[i].node_id),authState, strlen(authState));
 	}
 	AKM_PRINTF("parents = {");
 
