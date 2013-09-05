@@ -520,11 +520,11 @@ static void init(void) {
 char* get_auth_state_as_string(authentication_state auth_state) {
 	switch (auth_state) {
 	case UNAUTHENTICATED:
-		return " UNAUTHENTICATED ";
+		return "UNAUTHENTICATED";
 	case PENDING_SEND_CHALLENGE:
-		return " PENDING_SEND_CHALLENGE";
+		return "PENDING_SEND_CHALLENGE";
 	case CHALLENGE_SENT_WAITING_FOR_OK:
-		return " CHALLENGE_SENT_WAITING_FOR_OK ";
+		return "CHALLENGE_SENT_WAITING_FOR_OK ";
 	case OK_SENT_WAITING_FOR_ACK:
 		return "OK_SENT_WAITING_FOR_ACK";
 	case AUTH_PENDING:

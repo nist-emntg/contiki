@@ -29,6 +29,7 @@ void handle_beacon(beacon_t *pbeacon) {
 	AKM_PRINTF("handle_beacon : ");
 	AKM_PRINTADDR(senderId);
 	if (AKM_DATA.is_dodag_root) {
+		AKM_PRINTF("is_dodag_root = true.\n");
 		int i = find_authenticated_neighbor(senderId);
 		if (i == -1 || AKM_DATA.authenticated_neighbors[i].state
 						== UNAUTHENTICATED) {
@@ -52,7 +53,7 @@ void handle_beacon(beacon_t *pbeacon) {
 			 * a pair between which to insert himself.
 			 */
 			send_auth_ack(senderId, pparent);
-		} else if (get_authentication_state(senderId) == UNAUTHENTICATED
+		} else if (is_authenticated() && get_authentication_state(senderId) == UNAUTHENTICATED
 				&& (!pbeacon->is_authenticated
 						|| (pbeacon->is_capacity_available
 								&& is_capacity_available(senderId)))) {
