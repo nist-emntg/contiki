@@ -508,6 +508,12 @@ static void init(void) {
 	set_sighandler(akm_sighandler);
 #endif
 
+	if ( is_authenticated()) {
+		log_msg_one_node(AKM_LOG_NODE_AUTH_STATE,"AUTHENTICATED",strlen("AUTHENTICATED"));
+	} else {
+		log_msg_one_node(AKM_LOG_NODE_AUTH_STATE,"UNAUTHENTICATED",strlen("UNAUTHENTICATED"));
+	}
+
 }
 /*---------------------------------------------------------------------------*/
 #ifdef AKM_DEBUG
@@ -658,7 +664,7 @@ static void akm_sighandler(int signo) {
 				"%d state = %s Neighbor address = ",i,get_auth_state_as_string(AKM_DATA.authenticated_neighbors[i].state))
 		; AKM_PRINTADDR(&AKM_DATA.authenticated_neighbors[i]);
 		char* authState = get_auth_state_as_string(AKM_DATA.authenticated_neighbors[i].state);
-		log_msg_two_nodes(AKM_LOG_NODE_AUTH_STATE, get_node_id_as_int(&AKM_DATA.authenticated_neighbors[i].node_id),authState, strlen(authState));
+		log_msg_two_nodes(AKM_LOG_LINK_AUTH_STATE, get_node_id_as_int(&AKM_DATA.authenticated_neighbors[i].node_id),authState, strlen(authState));
 	}
 	AKM_PRINTF("parents = {");
 

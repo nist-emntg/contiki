@@ -65,6 +65,7 @@ bool_t set_authentication_state(nodeid_t* node_id,
 			authentication_state currentAuthState =
 					AKM_DATA.authenticated_neighbors[i].state;
 			if (authState != currentAuthState) {
+
 				if (authState == AUTH_PENDING) {
 					schedule_pending_authentication_timer(node_id);
 				} else if (authState == OK_SENT_WAITING_FOR_ACK) {
@@ -94,12 +95,22 @@ bool_t set_authentication_state(nodeid_t* node_id,
 
 
 			AKM_DATA.authenticated_neighbors[i].state = authState;
+			log_msg_two_nodes(AKM_LOG_LINK_AUTH_STATE,
+									get_node_id_as_int(&AKM_DATA.authenticated_neighbors[i].node_id),
+									get_auth_state_as_string(authState),
+									strlen(get_auth_state_as_string(authState)));
 			retval = True;
 			break;
 		}
 	}
 	if (!retval) {
 		AKM_PRINTF("set_authention_state: node not found \n");
+	}
+
+	if ( is_authenticated()) {
+		log_msg_one_node(AKM_LOG_NODE_AUTH_STATE,"AUTHENTICATED",strlen("AUTHENTICATED"));
+	} else {
+		log_msg_one_node(AKM_LOG_NODE_AUTH_STATE,"UNAUTHENTICATED",strlen("UNAUTHENTICATED"));
 	}
 	return retval;
 }
