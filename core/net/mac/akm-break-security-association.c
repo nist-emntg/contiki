@@ -69,6 +69,7 @@ void send_break_security_association(nodeid_t* target, bsa_continuation continua
 		rimeaddr_copy(&AKM_MAC_OUTPUT.data.bsa_request.insert_node_requester,pnodeid);
 	}
 	if ( continuation == BSA_CONTINUATION_NONE ) {
+		log_link_state_change(target,UNAUTHENTICATED);
 		free_security_association(target);
 	}
 	akm_send(target,BREAK_SECURITY_ASSOCIATION_REQUEST,sizeof(AKM_MAC_OUTPUT.data.bsa_request));

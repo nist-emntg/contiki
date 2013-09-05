@@ -433,16 +433,3 @@ void stop_auth_timer(nodeid_t* target) {
 	}
 }
 /*-----------------------------------------------------------------------*/
-void tear_down_authenticated_links() {
-	int i;
-	for (i = 0; i < NELEMS(AKM_DATA.authenticated_neighbors); i++) {
-		if (AKM_DATA.authenticated_neighbors[i].state != UNAUTHENTICATED) {
-			AKM_DATA.authenticated_neighbors[i].state = UNAUTHENTICATED;
-			send_break_security_association(
-					&AKM_DATA.authenticated_neighbors[i].node_id,
-					BSA_CONTINUATION_NONE, NULL);
-		}
-	}
-	reset_beacon();
-}
-/*-----------------------------------------------------------------------*/
