@@ -22,7 +22,7 @@
 
 
 #define PRINT_ERROR printf
-#define AKM_DEBUG 1
+
 #if AKM_DEBUG
 #ifdef CONTIKI_TARGET_NATIVE
 #define AKM_PRINTF(...) printf("akm:%lu: ",clock()) ; printf(__VA_ARGS__)
@@ -318,8 +318,9 @@ typedef struct akm_data
 
 
 enum {
-	AKM_LOG_NODE_AUTH_STATE = 4,
-	AKM_LOG_PARENT_ID = 5
+	AKM_LOG_LINK_AUTH_STATE = 4,
+	AKM_LOG_PARENT_ID = 5,
+	AKM_LOG_NODE_AUTH_STATE = 6
 };
 
 
