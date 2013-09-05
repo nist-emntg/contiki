@@ -119,7 +119,7 @@ void free_security_association(nodeid_t* pnodeId) {
 
 /*---------------------------------------------------------------------------*/
 static void insert_id(int location, nodeid_t* pNodeId,
-		session_key_t* sessionKey, authentication_state authState) {
+		session_key_t* sessionKey) {
 
 	rimeaddr_copy(&AKM_DATA.authenticated_neighbors[location].node_id, pNodeId);
 	if (sessionKey != NULL) {
@@ -245,7 +245,7 @@ void add_authenticated_neighbor(nodeid_t* pnodeId, session_key_t* sessionKey,
 	int i = 0;
 	for (i = 0; i < NELEMS(AKM_DATA.authenticated_neighbors); i++) {
 		if (AKM_DATA.authenticated_neighbors[i].state == UNAUTHENTICATED) {
-			insert_id(i, pnodeId, sessionKey, authState);
+			insert_id(i, pnodeId, sessionKey);
 			set_authentication_state(pnodeId, authState);
 			break;
 		}
@@ -409,19 +409,6 @@ bool_t is_authenticated() {
 	} else {
 		return has_authenticated_neighbors();
 	}
-}
-
-/*---------------------------------------------------------------------------*/
-bool_t isAuthenticationInPending() {
-
-	int i;
-	for (i = 0; i < NELEMS(AKM_DATA.authenticated_neighbors); i++) {
-		if (AKM_DATA.authenticated_neighbors[i].state == OK_SENT_WAITING_FOR_ACK
-				|| AKM_DATA.authenticated_neighbors[i].state == AUTH_PENDING) {
-			return True;
-		}
-	}
-	return False;
 }
 
 /*---------------------------------------------------------------------------*/
