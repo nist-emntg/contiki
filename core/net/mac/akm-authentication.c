@@ -54,6 +54,14 @@ authentication_state get_authentication_state(nodeid_t* neighbor_id) {
 	return UNAUTHENTICATED;
 }
 
+void log_link_state_change(nodeid_t* nodeId, authentication_state state) {
+#ifdef AKM_DEBUG
+			log_msg_two_nodes(AKM_LOG_LINK_AUTH_STATE,
+									get_node_id_as_int(nodeId),
+									get_auth_state_as_string(state),
+									strlen(get_auth_state_as_string(state)));
+#endif
+}
 /*---------------------------------------------------------------------------*/
 bool_t set_authentication_state(nodeid_t* node_id,
 		authentication_state authState) {
@@ -96,12 +104,8 @@ bool_t set_authentication_state(nodeid_t* node_id,
 
 			AKM_DATA.authenticated_neighbors[i].state = authState;
 
-#ifdef AKM_DEBUG
-			log_msg_two_nodes(AKM_LOG_LINK_AUTH_STATE,
-									get_node_id_as_int(&AKM_DATA.authenticated_neighbors[i].node_id),
-									get_auth_state_as_string(authState),
-									strlen(get_auth_state_as_string(authState)));
-#endif
+
+			log_link_state_change(node_id,authState);
 			retval = True;
 			break;
 		}
@@ -378,8 +382,8 @@ void handle_authentication_timeout(void* pvoid) {
 	}
 	/* If we have not reached authenticated state then free the slot*/
 	if (AKM_DATA.authenticated_neighbors[i].state != AUTHENTICATED) {
-
 		AKM_DATA.authenticated_neighbors[i].state = UNAUTHENTICATED;
+		log_link_state_change(node_id,UNAUTHENTICATED);
 		free_slot(i);
 	}
 	if (rimeaddr_cmp(&AKM_DATA.temporaryLink,
