@@ -95,10 +95,13 @@ bool_t set_authentication_state(nodeid_t* node_id,
 
 
 			AKM_DATA.authenticated_neighbors[i].state = authState;
+
+#ifdef AKM_DEBUG
 			log_msg_two_nodes(AKM_LOG_LINK_AUTH_STATE,
 									get_node_id_as_int(&AKM_DATA.authenticated_neighbors[i].node_id),
 									get_auth_state_as_string(authState),
 									strlen(get_auth_state_as_string(authState)));
+#endif
 			retval = True;
 			break;
 		}
