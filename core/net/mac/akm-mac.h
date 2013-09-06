@@ -320,7 +320,9 @@ typedef struct akm_data
 enum {
 	AKM_LOG_LINK_AUTH_STATE = 4,
 	AKM_LOG_PARENT_ID = 5,
-	AKM_LOG_NODE_AUTH_STATE = 6
+	AKM_LOG_NODE_AUTH_STATE = 6,
+	AKM_LOG_REMOVE_REDUNDANT_PARENT = 7,
+	AKM_LOG_INSERT_NODE = 8
 };
 
 
@@ -395,6 +397,10 @@ void schedule_beacon(void) ;
 
 #ifdef AKM_DEBUG
 extern void set_sighandler(void (*handler)(int) );
+#endif
+
+#ifndef AKM_DEBUG
+#define akm_log_parents() do{} while(0);
 #endif
 
 #endif /* __AKM_MAC_H */

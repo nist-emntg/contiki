@@ -538,6 +538,8 @@ void remove_parent(nodeid_t* parent_nodeid) {
 		}
 		/* Eject from the neighbor cache */
 		uip_ds6_nbr_rm(nbr);
+		log_msg_one_node(AKM_LOG_REMOVE_REDUNDANT_PARENT,"REMOVE_REDUNDANT_PARENT",strlen("REMOVE_REDUNDANT_PARENT"));
+
 	} else {
 		AKM_PRINTF("Could not find neighbor in cache.\n");
 	}
@@ -643,7 +645,42 @@ int get_node_id_as_int(nodeid_t* pnodeId) {
 	return (int) pnodeId->u8[NELEMS(pnodeId->u8) - 1];
 }
 /*---------------------------------------------------------------------------*/
+#ifdef AKM_DEBUG
+void log_parents() {
+	AKM_PRINTF("parents = {");
+
+		if (get_dodag_root() != NULL) {
+			rpl_parent_t* parent = rpl_get_first_parent(get_dodag_root());
+			int count = rpl_get_parent_count(get_dodag_root());
+			int* p = (uint16_t*) malloc( sizeof(uint16_t) * count);
+			int i = 0;
+			while (parent != NULL) {
+				if ( parent->rank < get_dodag_root()->rank) {
+					uip_ds6_nbr_t * neighbor = uip_ds6_nbr_lookup(&parent->addr);
+					//struct uip_neighbor_addr* pneighbor = uip_neighbor_lookup(&neighbor->ipaddr);
+					if (neighbor != NULL ) {
+						AKM_PRINTADDR((nodeid_t* ) &neighbor->lladdr);
+						p[i++] = get_node_id_as_int((nodeid_t*)&neighbor->lladdr);
+					}
+
+				}
+				parent = parent->next;
+			}
+			p[count] = 0;
+			log_msg_many_nodes(AKM_LOG_PARENT_ID,p,"RPL",3);
+			free(p);
+
+		}
+
+		AKM_PRINTF("}\n");
+}
+#endif
+
+/*---------------------------------------------------------------------------*/
 #if defined(AKM_DEBUG) && defined(CONTIKI_TARGET_NATIVE)
+
+
+
 static void akm_sighandler(int signo) {
 	int i;
 	for (i = 0; i < NELEMS(AKM_DATA.authenticated_neighbors); i++) {
@@ -653,32 +690,7 @@ static void akm_sighandler(int signo) {
 		char* authState = get_auth_state_as_string(AKM_DATA.authenticated_neighbors[i].state);
 		//log_msg_two_nodes(AKM_LOG_LINK_AUTH_STATE, get_node_id_as_int(&AKM_DATA.authenticated_neighbors[i].node_id),authState, strlen(authState));
 	}
-	AKM_PRINTF("parents = {");
-
-	if (get_dodag_root() != NULL) {
-		rpl_parent_t* parent = rpl_get_first_parent(get_dodag_root());
-		int count = rpl_get_parent_count(get_dodag_root());
-		int* p = (uint16_t*) malloc( sizeof(uint16_t) * count);
-		int i = 0;
-		while (parent != NULL) {
-			if ( parent->rank < get_dodag_root()->rank) {
-				uip_ds6_nbr_t * neighbor = uip_ds6_nbr_lookup(&parent->addr);
-				//struct uip_neighbor_addr* pneighbor = uip_neighbor_lookup(&neighbor->ipaddr);
-				if (neighbor != NULL ) {
-					AKM_PRINTADDR((nodeid_t* ) &neighbor->lladdr);
-					p[i++] = get_node_id_as_int((nodeid_t*)&neighbor->lladdr);
-				}
-
-			}
-			parent = parent->next;
-		}
-		p[count] = 0;
-		log_msg_many_nodes(AKM_LOG_PARENT_ID,p,"RPL",3);
-		free(p);
-
-	}
-
-	AKM_PRINTF("}\n");
+	log_parents();
 	log_msg_one_node(LOG_SIM_END, NULL, 0);
 	exit(EXIT_SUCCESS);
 }
