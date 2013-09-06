@@ -73,6 +73,11 @@ bool_t set_authentication_state(nodeid_t* node_id,
 			authentication_state currentAuthState =
 					AKM_DATA.authenticated_neighbors[i].state;
 			if (authState != currentAuthState) {
+				/* Need to log before setting otherwise pass by reference
+				 * screws up in the UNAUTHENTICATED setting case when
+				 * we zero out the slot.
+				 */
+				log_link_state_change(node_id,authState);
 
 				if (authState == AUTH_PENDING) {
 					schedule_pending_authentication_timer(node_id);
@@ -93,6 +98,10 @@ bool_t set_authentication_state(nodeid_t* node_id,
 					if (!is_authenticated()) {
 						reset_beacon();
 					}
+					if (rpl_get_parent_count(get_dodag_root()) == 0 ) {
+						/* Leave the dag */
+						rpl_free_instance(get_dodag_root()->instance);
+					}
 				}
 			}
 
@@ -105,7 +114,6 @@ bool_t set_authentication_state(nodeid_t* node_id,
 			AKM_DATA.authenticated_neighbors[i].state = authState;
 
 
-			log_link_state_change(node_id,authState);
 			retval = True;
 			break;
 		}
