@@ -66,5 +66,6 @@ send_insert_node_request(nodeid_t* target,nodeid_t* parentId) {
 	memcpy(&AKM_MAC_OUTPUT.data.insert_node.parent_id, parentId,sizeof(nodeid_t));
 	memcpy(&AKM_MAC_OUTPUT.data.insert_node.child_id,target,sizeof(nodeid_t));
 	akm_send(target,INSERT_NODE_REQUEST,sizeof(AKM_MAC_OUTPUT.data.insert_node));
+	log_msg_one_node(AKM_LOG_INSERT_NODE,"INSERT_NODE",strlen("INSERT_NODE"));
 }
 
