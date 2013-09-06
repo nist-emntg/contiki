@@ -116,10 +116,10 @@ bool_t set_authentication_state(nodeid_t* node_id,
 
 	if ( is_authenticated()) {
 		char* authState;
-		if ( is_redundant_parent_available() ) {
-			authState = "AUTHENTICATED_REDUNDANT_PARENT_AVAILABLE";
+		if ( is_capacity_available() ) {
+			authState = "AUTHENTICATED_UNSATURATED";
 		} else {
-			authState = "AUTHENTICATED_REDUNDANT_PARENT_NOT_AVAILABLE";
+			authState = "AUTHENTICATED_SATURATED";
 		}
 		log_msg_one_node(AKM_LOG_NODE_AUTH_STATE,authState,strlen(authState));
 	} else {
