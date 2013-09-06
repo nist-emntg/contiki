@@ -115,7 +115,13 @@ bool_t set_authentication_state(nodeid_t* node_id,
 	}
 
 	if ( is_authenticated()) {
-		log_msg_one_node(AKM_LOG_NODE_AUTH_STATE,"AUTHENTICATED",strlen("AUTHENTICATED"));
+		char* authState;
+		if ( is_redundant_parent_available() ) {
+			authState = "AUTHENTICATED_REDUNDANT_PARENT_AVAILABLE";
+		} else {
+			authState = "AUTHENTICATED_REDUNDANT_PARENT_NOT_AVAILABLE";
+		}
+		log_msg_one_node(AKM_LOG_NODE_AUTH_STATE,authState,strlen(authState));
 	} else {
 		log_msg_one_node(AKM_LOG_NODE_AUTH_STATE,"UNAUTHENTICATED",strlen("UNAUTHENTICATED"));
 	}
@@ -205,6 +211,10 @@ void handle_auth_challenge(auth_challenge_request_t* pauthChallenge) {
 		AKM_PRINTF("Failed to verify auth challenge\n")
 ;		return;
 	}
+	if ( ! is_capacity_available(sender_id) ) {
+		AKM_PRINTF("No capacity available -- not responding to challenge\n");
+		return;
+	}
 	auth_challenge_sc sc = pauthChallenge->status_code;
 
 	AKM_MAC_OUTPUT.data.auth_challenge_response.request_status_code = sc;
@@ -257,8 +267,8 @@ void handle_auth_challenge_response(auth_challenge_response_t* pacr) {
 				 */
 				nodeid_t* pparent = get_parent_id();
 				AKM_PRINTF(
-						"breaking security association with redundant parent")
-;				AKM_PRINTADDR(pparent);
+						"breaking security association with redundant parent");
+				AKM_PRINTADDR(pparent);
 				set_authentication_state(sender_id, AUTHENTICATED);
 				/* ask the parent to drop the SA with us */
 				send_break_security_association(pparent, BSA_CONTINUATION_NONE,
