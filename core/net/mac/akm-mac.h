@@ -64,7 +64,7 @@ typedef enum {
 /* MARTA related constants */
 #define BEACON_TIMER_INTERVAL     			5
 #define BEACON_TIMER_AUTH_INTERVAL          10
-#define BEACON_TIMER_IDLE_INTERVAL          75
+#define BEACON_TIMER_IDLE_INTERVAL          45
 #define TEMP_LINK_TIMER                     30
 #define PENDING_AUTH_TIMEOUT         		30
 #define SPACE_AVAILABLE_TIMER               5

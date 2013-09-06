@@ -539,7 +539,6 @@ void remove_parent(nodeid_t* parent_nodeid) {
 		/* Eject from the neighbor cache */
 		uip_ds6_nbr_rm(nbr);
 		log_msg_one_node(AKM_LOG_REMOVE_REDUNDANT_PARENT,"REMOVE_REDUNDANT_PARENT",strlen("REMOVE_REDUNDANT_PARENT"));
-
 	} else {
 		AKM_PRINTF("Could not find neighbor in cache.\n");
 	}
