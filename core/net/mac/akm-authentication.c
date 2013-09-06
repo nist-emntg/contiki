@@ -114,9 +114,10 @@ bool_t set_authentication_state(nodeid_t* node_id,
 		AKM_PRINTF("set_authention_state: node not found \n");
 	}
 
+#ifdef AKM_DEBUG
 	if ( is_authenticated()) {
 		char* authState;
-		if ( is_capacity_available() ) {
+		if ( is_capacity_available(NULL) ) {
 			authState = "AUTHENTICATED_UNSATURATED";
 		} else {
 			authState = "AUTHENTICATED_SATURATED";
@@ -125,6 +126,7 @@ bool_t set_authentication_state(nodeid_t* node_id,
 	} else {
 		log_msg_one_node(AKM_LOG_NODE_AUTH_STATE,"UNAUTHENTICATED",strlen("UNAUTHENTICATED"));
 	}
+#endif
 	return retval;
 }
 /*---------------------------------------------------------------------------*/
