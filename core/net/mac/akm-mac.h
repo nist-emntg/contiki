@@ -426,7 +426,7 @@ extern void schedule_cycle_detect_timer();
 #define STOP_CYCLE_DETECT_TIMER() stop_cycle_detect_timer()
 #else
 #define SCHEDULE_CYCLE_DETECT_TIMER() do{} while(0);
-#define STOP_CYCLE_DETECT_TIMER do{} while(0);
+#define STOP_CYCLE_DETECT_TIMER() do{} while(0);
 #endif
 
 
