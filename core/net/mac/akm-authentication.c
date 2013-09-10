@@ -85,9 +85,7 @@ bool_t set_authentication_state(nodeid_t* node_id,
 				} else if (authState == AUTHENTICATED) {
 					stop_auth_timer(node_id);
 					SCHEDULE_CYCLE_DETECT_TIMER();
-#if defined(AKM_DEBUG) && defined(CONTIKI_TARGET_NATIVE)
-						LOG_PARENTS();
-#endif
+
 				} else if (authState == UNAUTHENTICATED) {
 					if (currentAuthState != UNAUTHENTICATED) {
 						remove_parent(
@@ -95,9 +93,6 @@ bool_t set_authentication_state(nodeid_t* node_id,
 					}
 					if ( currentAuthState == AUTHENTICATED) {
 						STOP_CYCLE_DETECT_TIMER();
-#if defined(AKM_DEBUG) && defined(CONTIKI_TARGET_NATIVE)
-						log_parents();
-#endif
 					}
 					free_slot(i);
 					if (!is_authenticated()) {

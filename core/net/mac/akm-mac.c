@@ -425,7 +425,9 @@ void akm_route_message() {
 			(nodeid_t*) packetbuf_addr(PACKETBUF_ADDR_SENDER));
 	akm_op_t op = pakm_mac->mac_header.command;
 	nodeid_t* receiver_id = (nodeid_t*) packetbuf_addr(PACKETBUF_ADDR_RECEIVER);
-
+#if defined(AKM_DEBUG) && defined(CONTIKI_TARGET_NATIVE)
+	LOG_PARENTS();
+#endif
 	AKM_PRINTF("sender_id : ");
 	AKM_PRINTADDR(&AKM_DATA.sender_id);
 
@@ -672,8 +674,8 @@ void log_parents() {
 					if (neighbor != NULL ) {
 						AKM_PRINTADDR((nodeid_t* ) &neighbor->lladdr);
 						p[i++] = get_node_id_as_int((nodeid_t*)&neighbor->lladdr);
+						count++;
 					}
-
 				}
 				parent = parent->next;
 			}
