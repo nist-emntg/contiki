@@ -473,9 +473,11 @@ void akm_route_message() {
 		handle_insert_node_request(&pakm_mac->data.insert_node);
 		break;
 
+#if IS_CYCLE_DETECTION_ENABLED==1
 	case CYCLE_DETECT:
 		handle_cycle_detect(&pakm_mac->data.cycle_detect);
 		break;
+#endif
 
 	default:
 		PRINT_ERROR("akm_route_message:Not implemented\n")
