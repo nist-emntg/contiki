@@ -160,7 +160,7 @@ void drop_temporary_link() {
 	AKM_PRINTF("drop_temporary_link : temporaryLink = ");
 	AKM_PRINTADDR(&AKM_DATA.temporaryLink);
 	set_authentication_state(&AKM_DATA.temporaryLink, UNAUTHENTICATED);
-	memset(&AKM_DATA.temporaryLink, sizeof(nodeid_t), 0);
+	rimeaddr_copy(&AKM_DATA.temporaryLink,&rimeaddr_null);
 }
 /*------------------------------------------------------------------------*/
 void handle_pending_auth_timeout(nodeid_t* pnodeid) {
