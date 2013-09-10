@@ -73,11 +73,6 @@ bool_t set_authentication_state(nodeid_t* node_id,
 			authentication_state currentAuthState =
 					AKM_DATA.authenticated_neighbors[i].state;
 			if (authState != currentAuthState) {
-				/* Need to log before setting otherwise pass by reference
-				 * screws up in the UNAUTHENTICATED setting case when
-				 * we zero out the slot.
-				 */
-				log_link_state_change(node_id,authState);
 
 				if (authState == AUTH_PENDING) {
 					schedule_pending_authentication_timer(node_id);
@@ -89,18 +84,24 @@ bool_t set_authentication_state(nodeid_t* node_id,
 					schedule_challenge_sent_timeout(node_id);
 				} else if (authState == AUTHENTICATED) {
 					stop_auth_timer(node_id);
+					SCHEDULE_CYCLE_DETECT_TIMER();
+#if defined(AKM_DEBUG) && defined(CONTIKI_TARGET_NATIVE)
+						LOG_PARENTS();
+#endif
 				} else if (authState == UNAUTHENTICATED) {
 					if (currentAuthState != UNAUTHENTICATED) {
 						remove_parent(
 								&AKM_DATA.authenticated_neighbors[i].node_id);
 					}
+					if ( currentAuthState == AUTHENTICATED) {
+						STOP_CYCLE_DETECT_TIMER();
+#if defined(AKM_DEBUG) && defined(CONTIKI_TARGET_NATIVE)
+						log_parents();
+#endif
+					}
 					free_slot(i);
 					if (!is_authenticated()) {
 						reset_beacon();
-					}
-					if (rpl_get_parent_count(get_dodag_root()) == 0 ) {
-						/* Leave the dag */
-						rpl_free_instance(get_dodag_root()->instance);
 					}
 				}
 			}
@@ -114,6 +115,7 @@ bool_t set_authentication_state(nodeid_t* node_id,
 			AKM_DATA.authenticated_neighbors[i].state = authState;
 
 
+			log_link_state_change(node_id,authState);
 			retval = True;
 			break;
 		}
@@ -325,7 +327,8 @@ void handle_auth_ack(auth_ack_t* pauthAck) {
 				break;
 			}
 		}
-		if (foundInParentCache) {
+		// Insert myself into the overlay if there are not other alternatives.
+		if (foundInParentCache && !is_authenticated()) {
 			AKM_PRINTF("Found in parent cache. parent auth state is %s\n",
 					get_auth_state_as_string(get_authentication_state
 							(&pauthAck->parent_id)));

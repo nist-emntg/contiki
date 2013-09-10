@@ -40,6 +40,7 @@ akm_mac_t AKM_MAC_INPUT;
 
 extern rimeaddr_t rimeaddr_node_addr;
 
+
 /*--------------------------------------------------------------------------*/
 void internal_error(char* error_message) {
 	PRINT_ERROR(error_message);
@@ -51,7 +52,7 @@ void akm_set_dodag_root(rpl_dag_t *pdag) {
 }
 /*---------------------------------------------------------------------------*/
 rimeaddr_t*
-getNodeId() {
+get_node_id() {
 	return &rimeaddr_node_addr;
 }
 
@@ -207,6 +208,11 @@ static void check_and_restart(void *ptr) {
 
 	int i;
 	fire_timer(&AKM_DATA.beacon_timer);
+
+	if ( is_authenticated() && IS_CYCLE_DETECTION_ENABLED ) {
+		fire_timer(&AKM_DATA.cycle_detect_timer);
+	}
+
 	for (i = 0; i < NELEMS(AKM_DATA.send_challenge_delay_timer); i++) {
 		fire_timer(&AKM_DATA.send_challenge_delay_timer[i]);
 	}
@@ -299,7 +305,7 @@ void akm_send(nodeid_t *targetId, akm_op_t command, int size) {
 		AKM_MAC_OUTPUT.mac_header.ftype = UNFRAGMENTED;
 		packetbuf_copyfrom(&AKM_MAC_OUTPUT, frag_size);
 		packetbuf_set_addr(PACKETBUF_ADDR_RECEIVER, targetId);
-		packetbuf_set_addr(PACKETBUF_ADDR_SENDER, getNodeId());
+		packetbuf_set_addr(PACKETBUF_ADDR_SENDER, get_node_id());
 		NETSTACK_CONF_FRAMER.create();
 		sizeToSend = packetbuf_totlen();
 		NETSTACK_RADIO.prepare(packetbuf_hdrptr(), sizeToSend);
@@ -311,7 +317,7 @@ void akm_send(nodeid_t *targetId, akm_op_t command, int size) {
 		int chunksize = MAX_TRANSMIT_SIZE - sizeof(AKM_MAC_OUTPUT.mac_header);
 
 		packetbuf_set_addr(PACKETBUF_ADDR_RECEIVER, targetId);
-		packetbuf_set_addr(PACKETBUF_ADDR_SENDER, getNodeId());
+		packetbuf_set_addr(PACKETBUF_ADDR_SENDER, get_node_id());
 		int bytes_to_copy = frag_size - sizeof(AKM_MAC_OUTPUT.mac_header);
 		uint8_t fid = AKM_DATA.output_fragid;
 		AKM_DATA.output_fragid = (AKM_DATA.output_fragid++ % 256);
@@ -359,7 +365,7 @@ void akm_send(nodeid_t *targetId, akm_op_t command, int size) {
 			memcpy(dataptr, (char*) &AKM_MAC_OUTPUT.data + startbuf, chunksize);
 
 			packetbuf_set_addr(PACKETBUF_ADDR_RECEIVER, targetId);
-			packetbuf_set_addr(PACKETBUF_ADDR_SENDER, getNodeId());
+			packetbuf_set_addr(PACKETBUF_ADDR_SENDER, get_node_id());
 			NETSTACK_CONF_FRAMER.create();
 			sizeToSend = packetbuf_totlen();
 			NETSTACK_RADIO.prepare(packetbuf_hdrptr(), sizeToSend);
@@ -426,15 +432,15 @@ void akm_route_message() {
 	AKM_PRINTF("receiver_id : ");
 	AKM_PRINTADDR(receiver_id);
 	AKM_PRINTF("my_nodeid ");
-	AKM_PRINTADDR(getNodeId());
+	AKM_PRINTADDR(get_node_id());
 
 	if (!rimeaddr_cmp(receiver_id, ALL_NEIGHBORS)
-			&& !rimeaddr_cmp(receiver_id, getNodeId())) {
+			&& !rimeaddr_cmp(receiver_id, get_node_id())) {
 		AKM_PRINTF("akm_route_message: Message is not for me.\n");
 		return;
 	}
 
-	if (rimeaddr_cmp(&AKM_DATA.sender_id, getNodeId())) {
+	if (rimeaddr_cmp(&AKM_DATA.sender_id, get_node_id())) {
 		AKM_PRINTF("akm_route_message: Message originated by me -- dropping\n");
 		return;
 	}
@@ -467,6 +473,10 @@ void akm_route_message() {
 		handle_insert_node_request(&pakm_mac->data.insert_node);
 		break;
 
+	case CYCLE_DETECT:
+		handle_cycle_detect(&pakm_mac->data.cycle_detect);
+		break;
+
 	default:
 		PRINT_ERROR("akm_route_message:Not implemented\n")
 		;
@@ -477,7 +487,7 @@ void akm_route_message() {
 /*---------------------------------------------------------------------------*/
 static void init(void) {
 	AKM_PRINTF("akm-mac : init()");
-	AKM_PRINTADDR(getNodeId());
+	AKM_PRINTADDR(get_node_id());
 
 	AKM_MAC_OUTPUT.mac_header.protocol_id = AKM_DISPATCH_BYTE;
 	/*zero out the global data block */
@@ -488,7 +498,6 @@ static void init(void) {
 
 	/* set the master timer running*/
 	set_master_timer();
-
 
 	random_init(0);
 #if defined(AKM_DEBUG) && defined(CONTIKI_TARGET_NATIVE)
@@ -539,6 +548,7 @@ void remove_parent(nodeid_t* parent_nodeid) {
 		/* Eject from the neighbor cache */
 		uip_ds6_nbr_rm(nbr);
 		log_msg_one_node(AKM_LOG_REMOVE_REDUNDANT_PARENT,"REMOVE_REDUNDANT_PARENT",strlen("REMOVE_REDUNDANT_PARENT"));
+
 	} else {
 		AKM_PRINTF("Could not find neighbor in cache.\n");
 	}

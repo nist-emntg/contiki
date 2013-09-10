@@ -59,12 +59,13 @@ typedef enum {
     INSERT_NODE_REQUEST = 5,
     CONFIRM_TEMPORARY_LINK_REQUEST = 6,
     BEACON = 7,
+    CYCLE_DETECT = 8
 } akm_op_t;
 
 /* MARTA related constants */
 #define BEACON_TIMER_INTERVAL     			5
 #define BEACON_TIMER_AUTH_INTERVAL          10
-#define BEACON_TIMER_IDLE_INTERVAL          45
+#define BEACON_TIMER_IDLE_INTERVAL          75
 #define TEMP_LINK_TIMER                     30
 #define PENDING_AUTH_TIMEOUT         		30
 #define SPACE_AVAILABLE_TIMER               5
@@ -72,6 +73,7 @@ typedef enum {
 #define NO_SPACE_TIMER                      15
 #define CHALLENGE_SENT_TIMEOUT              5
 #define WAITING_FOR_ACK_TIMEOUT             5
+#define CYCLE_DETECT_INTERVAL 				30
 
 typedef  rimeaddr_t nodeid_t;
 
@@ -88,7 +90,7 @@ typedef enum {
 
 /* externally exposed functions */
 bool_t is_authenticated();
-nodeid_t* getNodeId();
+nodeid_t* get_node_id();
 void akm_route_message();
 
 
@@ -141,6 +143,10 @@ typedef struct beacon_header {
 	bool_t is_capacity_available;
 } beacon_t;
 
+
+typedef struct cycle_detect {
+	nodeid_t node_id;
+} cycle_detect_t;
 
 
  typedef enum  {
@@ -234,6 +240,7 @@ typedef struct akm_mac {
 		insert_node_request_t insert_node;
 		break_security_association_request_t bsa_request;
 		confirm_temporary_link_request_t confirm_temp_link_request;
+		cycle_detect_t cycle_detect;
 	}data;
 }akm_mac_t;
 
@@ -310,6 +317,8 @@ typedef struct akm_data
 
 
 	akm_timer_t beacon_timer;
+
+	akm_timer_t cycle_detect_timer;
 
 	struct ctimer master_timer;
 
@@ -394,13 +403,31 @@ rpl_parent_t *rpl_get_first_parent(rpl_dag_t* dag) ;
 void handle_insert_node_request(insert_node_request_t* pinsertNode);
 void schedule_waiting_for_ack_timeout(nodeid_t *target);
 void schedule_beacon(void) ;
-
+void handle_cycle_detect(cycle_detect_t* pCycleDetect);
 #ifdef AKM_DEBUG
 extern void set_sighandler(void (*handler)(int) );
 #endif
 
 #ifndef AKM_DEBUG
-#define akm_log_parents() do{} while(0);
+#define LOG_PARENTS() do{} while(0);
+#else
+extern void log_parents();
+#define LOG_PARENTS() log_parents();
 #endif
+
+/* Turn this on or off to enable cycle detection */
+#ifndef IS_CYCLE_DETECTION_ENABLED
+#define IS_CYCLE_DETECTION_ENABLED 0
+#endif
+
+#if IS_CYCLE_DETECTION_ENABLED == 1
+extern void schedule_cycle_detect_timer();
+#define SCHEDULE_CYCLE_DETECT_TIMER() schedule_cycle_detect_timer()
+#define STOP_CYCLE_DETECT_TIMER() stop_cycle_detect_timer()
+#else
+#define SCHEDULE_CYCLE_DETECT_TIMER() do{} while(0);
+#define STOP_CYCLE_DETECT_TIMER do{} while(0);
+#endif
+
 
 #endif /* __AKM_MAC_H */
