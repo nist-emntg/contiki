@@ -186,6 +186,7 @@ void set_master_timer() {
 }
 
 static void fire_timer(akm_timer_t* pakmTimer) {
+
 	if (pakmTimer->timer_state == TIMER_STATE_RUNNING) {
 		pakmTimer->current_count = (pakmTimer->current_count + 1)
 				% pakmTimer->interval;
@@ -503,7 +504,7 @@ static void init(void) {
 	/* set the master timer running*/
 	set_master_timer();
 
-	random_init(0);
+	random_init(get_node_id_as_int(get_node_id()));
 #if defined(AKM_DEBUG) && defined(CONTIKI_TARGET_NATIVE)
 	set_sighandler(akm_sighandler);
 #endif

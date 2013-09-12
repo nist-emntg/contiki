@@ -66,8 +66,8 @@ typedef enum {
 #define BEACON_TIMER_INTERVAL     			5
 #define BEACON_TIMER_AUTH_INTERVAL          10
 #define BEACON_TIMER_IDLE_INTERVAL          75
-#define TEMP_LINK_TIMER                     30
-#define PENDING_AUTH_TIMEOUT         		30
+#define TEMP_LINK_TIMER                     45
+#define PENDING_AUTH_TIMEOUT         		45
 #define SPACE_AVAILABLE_TIMER               5
 #define REDUNDANT_PARENT_AVAILABLE_TIMER    10
 #define NO_SPACE_TIMER                      15
@@ -297,6 +297,12 @@ typedef struct akm_timer {
 	 akm_timer_state_t timer_state;
 } akm_timer_t;
 
+typedef struct
+{
+	nodeid_t nodeId;
+	nodeid_t parentId;
+} parent_t;
+
 
 typedef struct akm_data
 {
@@ -313,7 +319,7 @@ typedef struct akm_data
 	authenticated_neighbor_t authenticated_neighbors[NODE_KEY_CACHE_SIZE+1];
 	akm_timer_t auth_timer[NODE_KEY_CACHE_SIZE+1];
 	akm_timer_t send_challenge_delay_timer[NODE_KEY_CACHE_SIZE+1];
-	nodeid_t parent_cache[NODE_KEY_CACHE_SIZE+1]; /* Parent cache for "insert-me" */
+	parent_t parent_cache[NODE_KEY_CACHE_SIZE + 1]; /* Parent cache for "insert-me" */
 
 
 	akm_timer_t beacon_timer;

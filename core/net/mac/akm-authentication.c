@@ -23,22 +23,27 @@ struct do_send_challenge_data {
 
 
 /*---------------------------------------------------------------------------*/
-void insert_parent(int slot, nodeid_t* parent) {
-	AKM_PRINTF("insert_parent: slot %d parent =  " ,slot)
-;	AKM_PRINTADDR(parent);
-	rimeaddr_copy(&AKM_DATA.parent_cache[slot], parent);
+void insert_parent(int slot, nodeid_t * nodeId, nodeid_t* parent) {
+	AKM_PRINTF("insert_parent: slot %d nodeId =  " ,slot);
+	AKM_PRINTADDR(nodeId);
+	AKM_PRINTF(" parent = ");
+	AKM_PRINTADDR(parent);
+
+	rimeaddr_copy(&AKM_DATA.parent_cache[slot].parentId, parent);
+	rimeaddr_copy(&AKM_DATA.parent_cache[slot].nodeId, nodeId);
+
 }
 /*--------------------------------------------------------------------------*/
-void add_to_parent_cache(nodeid_t* parent) {
+void add_to_parent_cache(nodeid_t* nodeId, nodeid_t* parent) {
 	int i;
 	for (i = 0; i < NELEMS(AKM_DATA.parent_cache); i++) {
-		if (is_nodeid_zero(&AKM_DATA.parent_cache[i])) {
-			insert_parent(i, parent);
+		if (is_nodeid_zero(&AKM_DATA.parent_cache[i].nodeId)) {
+			insert_parent(i, nodeId, parent);
 			return;
 		}
 	}
-	i = random_rand() % sizeof(AKM_DATA.parent_cache);
-	insert_parent(i, parent);
+	i = random_rand() % NELEMS(AKM_DATA.parent_cache);
+	insert_parent(i,nodeId, parent);
 
 }
 
@@ -85,6 +90,7 @@ bool_t set_authentication_state(nodeid_t* node_id,
 				} else if (authState == AUTHENTICATED) {
 					stop_auth_timer(node_id);
 					SCHEDULE_CYCLE_DETECT_TIMER();
+					reset_beacon();
 
 				} else if (authState == UNAUTHENTICATED) {
 					if (currentAuthState != UNAUTHENTICATED) {
@@ -95,12 +101,11 @@ bool_t set_authentication_state(nodeid_t* node_id,
 						STOP_CYCLE_DETECT_TIMER();
 					}
 					free_slot(i);
-					if (!is_authenticated()) {
-						reset_beacon();
-					}
+					AKM_DATA.authenticated_neighbors[i].time_since_last_ping = 0;
+					reset_beacon();
+
 				}
 			}
-
 #ifdef AKM_DEBUG
 			AKM_PRINTF("set_authentication_state : %d %s ",i, get_auth_state_as_string(authState));
 			AKM_PRINTADDR(node_id);
@@ -194,7 +199,7 @@ void send_challenge(nodeid_t* target, beacon_t * pbeacon) {
 		take_temporary_link(target);
 		schedule_send_challenge_timer(time, target, pbeacon,AUTH_REDUNDANT_PARENT_AVAILABLE);
 
-	} else if ( is_temp_link_available() ) {
+	} else if ( is_temp_link_available() && !pbeacon->is_authenticated ) {
 		add_authenticated_neighbor(target, NULL, PENDING_SEND_CHALLENGE);
 		time = SPACE_AVAILABLE_TIMER + REDUNDANT_PARENT_AVAILABLE_TIMER
 				+ random_rand() % NO_SPACE_TIMER;
@@ -202,7 +207,7 @@ void send_challenge(nodeid_t* target, beacon_t * pbeacon) {
 		take_temporary_link(target);
 		schedule_send_challenge_timer(time, target, pbeacon, AUTH_NO_SPACE);
 	} else {
-		AKM_PRINTF("temporary link is not available. current value is : ");
+		AKM_PRINTF("temporary link is not available or sender is authenticated. current value is : ");
 		AKM_PRINTADDR(&AKM_DATA.temporaryLink);
 	}
 
@@ -316,29 +321,44 @@ void handle_auth_ack(auth_ack_t* pauthAck) {
 		int i = 0;
 		AKM_PRINTF("checking parent cache for ");
 		AKM_PRINTADDR(&pauthAck->parent_id);
+		nodeid_t *child;
+		nodeid_t *parent;
 		for (i = 0; i < NELEMS(AKM_DATA.parent_cache); i++) {
-			if (rimeaddr_cmp(&pauthAck->parent_id, &AKM_DATA.parent_cache[i])) {
+			if (rimeaddr_cmp(&pauthAck->parent_id, &AKM_DATA.parent_cache[i].nodeId)) {
+				foundInParentCache = True;
+				child = sender;
+				parent = &AKM_DATA.parent_cache[i].nodeId;
+				break;
+			} else if (rimeaddr_cmp(sender,&AKM_DATA.parent_cache[i].parentId)) {
+				child = &AKM_DATA.parent_cache[i].nodeId;
+				parent = sender;
 				foundInParentCache = True;
 				break;
 			}
 		}
+
+		if (!is_authenticated() && get_authentication_state(sender) == OK_SENT_WAITING_FOR_ACK) {
+			set_authentication_state(sender,AUTH_PENDING);
+		}
+
 		// Insert myself into the overlay if there are not other alternatives.
 		if (foundInParentCache && !is_authenticated()) {
-			AKM_PRINTF("Found in parent cache. parent auth state is %s\n",
-					get_auth_state_as_string(get_authentication_state
-							(&pauthAck->parent_id)));
-			if (get_authentication_state(sender) == AUTH_PENDING &&
-					get_authentication_state(&pauthAck->parent_id) == AUTH_PENDING ) {
-				set_authentication_state(sender, AUTH_PENDING);
-				send_insert_node_request(sender, &pauthAck->parent_id);
+			AKM_PRINTF("parent = ");
+			AKM_PRINTADDR(parent);
+			AKM_PRINTF("child = ");
+			AKM_PRINTADDR(child);
+			AKM_PRINTF("Found in parent cache. parent auth state is %s child state %s\n",
+					get_auth_state_as_string(get_authentication_state(parent)),
+					get_auth_state_as_string(get_authentication_state(child)));
+
+			if (get_authentication_state(parent) == AUTH_PENDING &&
+					get_authentication_state(child) == AUTH_PENDING ) {
+				send_insert_node_request(child, parent);
 			}
 		} else {
-			/* put the ID in parent cache */
-			if (get_authentication_state(sender) == OK_SENT_WAITING_FOR_ACK) {
-				/* put the id in the parent cache and wait for next round */
-				add_to_parent_cache(sender);
-				set_authentication_state(sender, AUTH_PENDING);
-			}
+			/* put the id in the parent cache and wait for next round */
+			add_to_parent_cache(sender,&pauthAck->parent_id);
+
 		}
 	}
 

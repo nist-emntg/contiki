@@ -26,15 +26,15 @@ void send_beacon() {
 
 void handle_beacon(beacon_t *pbeacon) {
 	nodeid_t* senderId = &AKM_DATA.sender_id;
-	AKM_PRINTF("handle_beacon : ");
-	AKM_PRINTADDR(senderId);
+	AKM_PRINTF("handle_beacon : "); AKM_PRINTADDR(senderId);
 	if (AKM_DATA.is_dodag_root) {
 		AKM_PRINTF("is_dodag_root = true.\n");
 		int i = find_authenticated_neighbor(senderId);
-		if (i == -1 || AKM_DATA.authenticated_neighbors[i].state
+		if (i == -1
+				|| AKM_DATA.authenticated_neighbors[i].state
 						== UNAUTHENTICATED) {
 			send_challenge(senderId, pbeacon);
-		} else if (AKM_DATA.authenticated_neighbors[i].state == AUTHENTICATED) {
+		} else if (i != -1 ) {
 			AKM_DATA.authenticated_neighbors[i].time_since_last_ping = 0;
 		}
 	} else {
@@ -42,29 +42,32 @@ void handle_beacon(beacon_t *pbeacon) {
 				"is_authenticated sender = %d is_part_of_dodag = %d sender auth state is %s\n",
 				pbeacon->is_authenticated, is_part_of_dodag(),
 				get_auth_state_as_string(get_authentication_state(senderId)));
+		int i = find_authenticated_neighbor(senderId);
+		if (-1 != i) {
+				AKM_PRINTF("Saw a ping from ");
+				AKM_PRINTADDR(senderId);
+				AKM_PRINTF("Resetting time_since_last_ping %d \n",
+						AKM_DATA.authenticated_neighbors[i].time_since_last_ping );
+				AKM_DATA.authenticated_neighbors[i].time_since_last_ping = 0;
+		}
 		if (get_authentication_state(senderId) == AUTH_PENDING) {
 			/* Already authenticated him so just resend the ack */
 			nodeid_t* pparent = get_parent_id();
 			/* Redundant parent is not available */
 			AKM_PRINTF(
-					"handle_beacon: node is AUTH_PENDING - resend ACK. parent is  \n");
-			AKM_PRINTADDR(pparent);
+					"handle_beacon: node is AUTH_PENDING - resend ACK. parent is  \n"); AKM_PRINTADDR(pparent);
 			/* Send the parent along to the child so he may identify
 			 * a pair between which to insert himself.
 			 */
 			send_auth_ack(senderId, pparent);
-		} else if (is_authenticated() && get_authentication_state(senderId) == UNAUTHENTICATED
+
+		} else if (is_authenticated()
+				&& get_authentication_state(senderId) == UNAUTHENTICATED
 				&& (!pbeacon->is_authenticated
 						|| (pbeacon->is_capacity_available
 								&& is_capacity_available(senderId)))) {
 			send_challenge(senderId, pbeacon);
-		} else if (get_authentication_state(senderId) == AUTHENTICATED) {
-			int i = find_authenticated_neighbor(senderId);
-			if (-1 != i) {
-				AKM_DATA.authenticated_neighbors[i].time_since_last_ping = 0;
-			}
 		}
-
 	}
 
 }
@@ -89,7 +92,7 @@ static clock_time_t get_beacon_interval() {
 void reset_beacon(void) {
 	AKM_PRINTF("reset_beacon\n");
 	AKM_DATA.beacon_timer.timer_state = TIMER_STATE_RUNNING;
-	AKM_DATA.beacon_timer.current_count = 0;
+	//AKM_DATA.beacon_timer.current_count = 0;
 	AKM_DATA.beacon_timer.interval = get_beacon_interval();
 
 }
