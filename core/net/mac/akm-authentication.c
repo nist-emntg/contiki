@@ -277,7 +277,7 @@ void handle_auth_challenge_response(auth_challenge_response_t* pacr) {
 				/* Break the security assoc. with my parent.
 				 * Child now owns the slot
 				 */
-				nodeid_t* pparent = get_parent_id();
+				nodeid_t* pparent = rpl_get_redundant_parent_lladdr(get_dodag_root());
 				AKM_PRINTF(
 						"breaking security association with redundant parent");
 				AKM_PRINTADDR(pparent);
@@ -321,8 +321,8 @@ void handle_auth_ack(auth_ack_t* pauthAck) {
 		int i = 0;
 		AKM_PRINTF("checking parent cache for ");
 		AKM_PRINTADDR(&pauthAck->parent_id);
-		nodeid_t *child;
-		nodeid_t *parent;
+		nodeid_t *child = NULL;
+		nodeid_t *parent = NULL;
 		for (i = 0; i < NELEMS(AKM_DATA.parent_cache); i++) {
 			if (rimeaddr_cmp(&pauthAck->parent_id, &AKM_DATA.parent_cache[i].nodeId)) {
 				foundInParentCache = True;

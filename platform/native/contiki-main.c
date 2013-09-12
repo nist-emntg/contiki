@@ -31,7 +31,9 @@
  *
  */
 
+#include <getopt.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/select.h>
@@ -42,6 +44,9 @@
 
 #include "contiki.h"
 #include "net/netstack.h"
+
+#include "ctk/ctk.h"
+#include "ctk/ctk-curses.h"
 
 #include "dev/serial-line.h"
 
@@ -68,8 +73,13 @@ static int select_max = 0;
 
 SENSORS(&pir_sensor, &vib_sensor, &button_sensor);
 
-static uint8_t serial_id[] = {0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08};
+static uint8_t serial_id[] = {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
 static uint16_t node_id = 0x0102;
+
+const static struct option longopt [] = {
+	{ "identifier", required_argument, NULL, 'i' },
+	{ NULL, 0, NULL, 0},
+};
 /*---------------------------------------------------------------------------*/
 int
 select_set_callback(int fd, const struct select_callback *callback)
@@ -158,6 +168,8 @@ char **contiki_argv;
 int
 main(int argc, char **argv)
 {
+  int i, c, opt_idx = 0;
+  uint16_t identifier = 0;
 #if UIP_CONF_IPV6
 #if UIP_CONF_IPV6_RPL
   printf(CONTIKI_VERSION_STRING " started with IPV6, RPL\n");
@@ -188,6 +200,36 @@ main(int argc, char **argv)
   process_init();
   process_start(&etimer_process, NULL);
   ctimer_init();
+
+#if WITH_GUI
+  process_start(&ctk_process, NULL);
+#endif
+
+  /* look for the identifier argument */
+  /* (getopt modify argument, so we work on a local copy here) */
+  char ** temp_argv = malloc((contiki_argc+1) * sizeof(char*));
+  for(i=0; i< contiki_argc; ++i)
+	  temp_argv[i] = strdup(contiki_argv[i]);
+  temp_argv[contiki_argc] = NULL;
+
+  while((c = getopt_long(contiki_argc,
+						 temp_argv,
+						 ":i:",
+						 longopt,
+						 &opt_idx)) != -1) {
+	  switch (c) {
+	  case 'i': /* --identifier */
+		  identifier = atoi(optarg);
+	  }
+  }
+
+  for(i=0; i< argc; ++i)
+	  free(temp_argv[i]);
+  free(temp_argv);
+
+  /* derive the node id from the identifier */
+  serial_id[6] = identifier >> 8;
+  serial_id[7] = identifier & 0xff;
 
   set_rime_addr();
 
@@ -264,6 +306,12 @@ main(int argc, char **argv)
     }
 
     etimer_request_poll();
+
+#if WITH_GUI
+    if(console_resize()) {
+       ctk_restore();
+    }
+#endif /* WITH_GUI */
   }
 
   return 0;
@@ -272,13 +320,13 @@ main(int argc, char **argv)
 void
 log_message(char *m1, char *m2)
 {
-  printf("%s%s\n", m1, m2);
+  fprintf(stderr, "%s%s\n", m1, m2);
 }
 /*---------------------------------------------------------------------------*/
 void
 uip_log(char *m)
 {
-  printf("%s\n", m);
+  fprintf(stderr, "%s\n", m);
 }
 
 /*---------------------------------------------------------------------------*/

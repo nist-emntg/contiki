@@ -410,6 +410,9 @@ void handle_insert_node_request(insert_node_request_t* pinsertNode);
 void schedule_waiting_for_ack_timeout(nodeid_t *target);
 void schedule_beacon(void) ;
 void handle_cycle_detect(cycle_detect_t* pCycleDetect);
+uip_lladdr_t*
+rpl_get_redundant_parent_lladdr(rpl_dag_t* dag);
+uip_lladdr_t *rpl_get_parent_lladdr(rpl_dag_t *dag, rpl_parent_t* parent);
 #ifdef AKM_DEBUG
 extern void set_sighandler(void (*handler)(int) );
 #endif

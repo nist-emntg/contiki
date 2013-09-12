@@ -23,7 +23,6 @@
 #include <assert.h>
 #include <sys/logger.h>
 extern void rpl_remove_parent(rpl_dag_t *dag, rpl_parent_t *parent);
-extern rpl_parent_t *rpl_select_redundant_parent(rpl_dag_t *dag);
 void free_slot(int slot);
 static void check_and_restart(void *ptr);
 static void akm_sighandler(int signo);
@@ -61,16 +60,8 @@ nodeid_t * get_parent_id() {
 	if (get_dodag_root() == NULL) {
 		return NULL;
 	}
-	rpl_parent_t* parent = get_dodag_root()->preferred_parent;
-	if (parent != NULL) {
-		uip_ds6_nbr_t * neighbor = uip_ds6_nbr_lookup(&parent->addr);
-		//struct uip_neighbor_addr* pneighbor = uip_neighbor_lookup(&neighbor->ipaddr);
-		return (nodeid_t*) &neighbor->lladdr;
-	} else {
-		AKM_PRINTF("get_parent_id: parent ID is null -- returning null");
-		return NULL;
-	}
 
+	 return rpl_get_parent_lladdr(get_dodag_root(),get_dodag_root()->preferred_parent);
 }
 /*--------------------------------------------------------------------------*/
 bool_t is_nodeid_zero(nodeid_t* pnodeId) {
@@ -418,6 +409,10 @@ bool_t is_authenticated() {
 	}
 }
 
+bool_t is_part_of_dodag() {
+	return get_dodag_root() != NULL &&  get_dodag_root()->preferred_parent != NULL;
+}
+
 /*---------------------------------------------------------------------------*/
 void akm_route_message() {
 	akm_mac_t* pakm_mac = &AKM_MAC_INPUT;
@@ -573,10 +568,7 @@ rpl_dag_t * get_dodag_root() {
 }
 
 /*---------------------------------------------------------------------------*/
-bool_t is_part_of_dodag() {
-	return get_dodag_root() != NULL
-			&& rpl_get_parent_count(get_dodag_root()) >= 1;
-}
+
 
 /*---------------------------------------------------------------------------*/
 static void send_packet(mac_callback_t sent, void *ptr) {
@@ -663,30 +655,27 @@ int get_node_id_as_int(nodeid_t* pnodeId) {
 void log_parents() {
 	AKM_PRINTF("parents = {");
 
-		if (get_dodag_root() != NULL) {
-			rpl_parent_t* parent = rpl_get_first_parent(get_dodag_root());
-			int count = rpl_get_parent_count(get_dodag_root());
+	if (get_dodag_root() != NULL) {
+		rpl_parent_t* parent = rpl_get_first_parent(get_dodag_root());
+		int count = rpl_get_parent_count(get_dodag_root());
+		AKM_PRINTF(" count = %d\n",count);
+		if ( count != 0) {
 			int* p = (uint16_t*) malloc( sizeof(uint16_t) * count);
 			int i = 0;
 			while (parent != NULL) {
-				if ( parent->rank < get_dodag_root()->rank) {
-					uip_ds6_nbr_t * neighbor = uip_ds6_nbr_lookup(&parent->addr);
-					//struct uip_neighbor_addr* pneighbor = uip_neighbor_lookup(&neighbor->ipaddr);
-					if (neighbor != NULL ) {
-						AKM_PRINTADDR((nodeid_t* ) &neighbor->lladdr);
-						p[i++] = get_node_id_as_int((nodeid_t*)&neighbor->lladdr);
-						count++;
-					}
-				}
+				//struct uip_neighbor_addr* pneighbor = uip_neighbor_lookup(&neighbor->ipaddr);
+				p[i++] = get_node_id_as_int(rpl_get_parent_lladdr(get_dodag_root(),parent));
+				count++;
 				parent = parent->next;
 			}
 			p[count] = 0;
 			log_msg_many_nodes(AKM_LOG_PARENT_ID,p,"RPL",3);
 			free(p);
-
 		}
 
-		AKM_PRINTF("}\n");
+	}
+
+	AKM_PRINTF("}\n");
 }
 #endif
 

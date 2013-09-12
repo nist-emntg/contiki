@@ -58,7 +58,6 @@
  *
  * This file is part of the uIP TCP/IP stack.
  *
- * $Id: uipopt.h,v 1.14 2010/12/24 00:39:04 dak664 Exp $
  *
  */
 
@@ -212,11 +211,6 @@
 #ifndef UIP_CONF_DS6_PREFIX_NBU
 /** Default number of IPv6 prefixes associated to the node's interface */
 #define UIP_CONF_DS6_PREFIX_NBU     2
-#endif
-
-#ifndef UIP_CONF_DS6_NBR_NBU
-/** Default number of neighbors that can be stored in the %neighbor cache */
-#define UIP_CONF_DS6_NBR_NBU    4
 #endif
 
 #ifndef UIP_CONF_DS6_DEFRT_NBU

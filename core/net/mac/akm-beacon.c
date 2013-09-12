@@ -61,7 +61,7 @@ void handle_beacon(beacon_t *pbeacon) {
 			 */
 			send_auth_ack(senderId, pparent);
 
-		} else if (is_authenticated()
+		} else if (is_authenticated() && is_part_of_dodag()
 				&& get_authentication_state(senderId) == UNAUTHENTICATED
 				&& (!pbeacon->is_authenticated
 						|| (pbeacon->is_capacity_available
