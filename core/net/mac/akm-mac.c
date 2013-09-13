@@ -567,7 +567,6 @@ rpl_dag_t * get_dodag_root() {
 	return rpl_get_any_dag();
 }
 
-/*---------------------------------------------------------------------------*/
 
 
 /*---------------------------------------------------------------------------*/
@@ -659,13 +658,16 @@ void log_parents() {
 		rpl_parent_t* parent = rpl_get_first_parent(get_dodag_root());
 		int count = rpl_get_parent_count(get_dodag_root());
 		AKM_PRINTF(" count = %d\n",count);
+
 		if ( count != 0) {
 			int* p = (uint16_t*) malloc( sizeof(uint16_t) * count);
+
 			int i = 0;
+			p[i++] = get_node_id_as_int
+					(rpl_get_parent_lladdr(get_dodag_root(),get_dodag_root()->preferred_parent));
 			while (parent != NULL) {
 				//struct uip_neighbor_addr* pneighbor = uip_neighbor_lookup(&neighbor->ipaddr);
 				p[i++] = get_node_id_as_int(rpl_get_parent_lladdr(get_dodag_root(),parent));
-				count++;
 				parent = parent->next;
 			}
 			p[count] = 0;
