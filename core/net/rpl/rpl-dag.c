@@ -169,8 +169,6 @@ remove_parents(rpl_dag_t *dag, rpl_rank_t minimum_rank)
   while(p != NULL) {
     if(dag == p->dag && p->rank >= minimum_rank) {
       rpl_remove_parent(p);
-      uip_ds6_nbr_t * nbr = uip_ds6_nbr_lookup(&p->addr);
-      free_security_association((nodeid_t*) &nbr->lladdr);
     }
     p = nbr_table_next(rpl_parents, p);
   }
@@ -304,8 +302,6 @@ rpl_set_root(uint8_t instance_id, uip_ipaddr_t *dag_id)
   ANNOTATE("#A root=%u\n", dag->dag_id.u8[sizeof(dag->dag_id) - 1]);
 
   rpl_reset_dio_timer(instance);
-  akm_set_dodag_root(dag);
-
 
   akm_set_dodag_root(dag);
 
@@ -363,7 +359,7 @@ check_prefix(rpl_prefix_t *last_prefix, rpl_prefix_t *new_prefix)
       uip_ds6_addr_rm(rep);
     }
   }
-
+  
   if(new_prefix != NULL) {
     set_ip_from_prefix(&ipaddr, new_prefix);
     if(uip_ds6_addr_lookup(&ipaddr) == NULL) {
@@ -380,7 +376,7 @@ rpl_set_prefix(rpl_dag_t *dag, uip_ipaddr_t *prefix, unsigned len)
 {
   rpl_prefix_t last_prefix;
   uint8_t last_len = dag->prefix_info.length;
-
+  
   if(len > 128) {
     return 0;
   }
@@ -397,7 +393,7 @@ rpl_set_prefix(rpl_dag_t *dag, uip_ipaddr_t *prefix, unsigned len)
   if(last_len == 0) {
     PRINTF("rpl_set_prefix - prefix NULL\n");
     check_prefix(NULL, &dag->prefix_info);
-  } else {
+  } else { 
     PRINTF("rpl_set_prefix - prefix NON-NULL\n");
     check_prefix(&last_prefix, &dag->prefix_info);
   }
@@ -722,31 +718,6 @@ rpl_select_parent(rpl_dag_t *dag)
   return best;
 }
 /*---------------------------------------------------------------------------*/
-rpl_parent_t *rpl_get_first_parent(rpl_dag_t* dag) {
-	return (rpl_parent_t*) list_head(dag->parents);
-}
-/*---------------------------------------------------------------------------*/
-rpl_parent_t *
-rpl_select_redundant_parent(rpl_dag_t *dag)
-{
-  rpl_parent_t *p, *best;
-
-  best = rpl_select_parent(dag);
-
-
-  for(p = list_head(dag->parents); p != NULL; p = p->next) {
-    if(p->rank == INFINITE_RANK  ) {
-      /* ignore this neighbor */
-    }  else {
-      if (p != dag->instance->of->best_parent(best, p) ) {
-    	  return p;
-      }
-    }
-  }
-
-  return best;
-}
-/*------------------------------------------------------------------------*/
 void
 rpl_remove_parent(rpl_parent_t *parent)
 {
@@ -1161,8 +1132,6 @@ rpl_process_dio(uip_ipaddr_t *from, rpl_dio_t *dio)
   rpl_dag_t *dag, *previous_dag;
   rpl_parent_t *p;
 
-  PRINTF("RPL: rpl_process_dio: rank = %du ",dio->rank);
-
   if(dio->mop != RPL_MOP_DEFAULT) {
     PRINTF("RPL: Ignoring a DIO with an unsupported MOP: %d\n", dio->mop);
     return;
@@ -1213,6 +1182,7 @@ rpl_process_dio(uip_ipaddr_t *from, rpl_dio_t *dio)
     return;
   }
 
+
   if(dio->rank < ROOT_RANK(instance)) {
     PRINTF("RPL: Ignoring DIO with too low rank: %u\n",
            (unsigned)dio->rank);
@@ -1220,7 +1190,7 @@ rpl_process_dio(uip_ipaddr_t *from, rpl_dio_t *dio)
   } else if(dio->rank == INFINITE_RANK && dag->joined) {
     rpl_reset_dio_timer(instance);
   }
-
+  
   /* Prefix Information Option treated to add new prefix */
   if(dio->prefix_info.length != 0) {
     if(dio->prefix_info.flags & UIP_ND6_RA_FLAG_AUTONOMOUS) {

@@ -216,10 +216,6 @@ rpl_ipv6_neighbor_callback(uip_ds6_nbr_t *nbr)
   }
 }
 /*---------------------------------------------------------------------------*/
-
-
-
-/************************************************************************/
 void
 rpl_init(void)
 {
@@ -229,7 +225,6 @@ rpl_init(void)
 
   rpl_dag_init();
   rpl_reset_periodic_timer();
-  neighbor_info_subscribe(rpl_link_neighbor_callback);
   /* add rpl multicast address */
   uip_create_linklocal_rplnodes_mcast(&rplmaddr);
   uip_ds6_maddr_add(&rplmaddr);
