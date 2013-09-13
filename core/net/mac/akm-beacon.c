@@ -94,7 +94,6 @@ void reset_beacon(void) {
 	AKM_DATA.beacon_timer.timer_state = TIMER_STATE_RUNNING;
 	//AKM_DATA.beacon_timer.current_count = 0;
 	AKM_DATA.beacon_timer.interval = get_beacon_interval();
-
 }
 
 /*---------------------------------------------------------------------------*/

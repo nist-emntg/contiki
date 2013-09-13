@@ -44,7 +44,6 @@ void add_to_parent_cache(nodeid_t* nodeId, nodeid_t* parent) {
 	}
 	i = random_rand() % NELEMS(AKM_DATA.parent_cache);
 	insert_parent(i,nodeId, parent);
-
 }
 
 /*---------------------------------------------------------------------------*/
@@ -358,7 +357,6 @@ void handle_auth_ack(auth_ack_t* pauthAck) {
 		} else {
 			/* put the id in the parent cache and wait for next round */
 			add_to_parent_cache(sender,&pauthAck->parent_id);
-
 		}
 	}
 

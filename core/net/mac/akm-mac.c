@@ -177,7 +177,6 @@ void set_master_timer() {
 }
 
 static void fire_timer(akm_timer_t* pakmTimer) {
-
 	if (pakmTimer->timer_state == TIMER_STATE_RUNNING) {
 		pakmTimer->current_count = (pakmTimer->current_count + 1)
 				% pakmTimer->interval;

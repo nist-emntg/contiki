@@ -62,7 +62,13 @@ static uint16_t next_dis;
 /* dio_send_ok is true if the node is ready to send DIOs */
 static uint8_t dio_send_ok;
 
+<<<<<<< HEAD
 /*---------------------------------------------------------------------------*/
+=======
+
+
+/************************************************************************/
+>>>>>>> Clean compile of MARTA on contiki.
 static void
 handle_periodic_timer(void *ptr)
 {
@@ -218,7 +224,12 @@ handle_dao_timer(void *ptr)
   }
   ctimer_stop(&instance->dao_timer);
 }
+<<<<<<< HEAD
 /*---------------------------------------------------------------------------*/
+=======
+
+/************************************************************************/
+>>>>>>> Clean compile of MARTA on contiki.
 void
 rpl_schedule_dao(rpl_instance_t *instance)
 {
