@@ -66,13 +66,8 @@ typedef enum {
 #define BEACON_TIMER_INTERVAL     			5
 #define BEACON_TIMER_AUTH_INTERVAL          10
 #define BEACON_TIMER_IDLE_INTERVAL          75
-<<<<<<< HEAD
 #define TEMP_LINK_TIMER                     45
 #define PENDING_AUTH_TIMEOUT         		45
-=======
-#define TEMP_LINK_TIMER                     30
-#define PENDING_AUTH_TIMEOUT         		30
->>>>>>> 34d4b822c576821feae8edfaac826663b4196244
 #define SPACE_AVAILABLE_TIMER               5
 #define REDUNDANT_PARENT_AVAILABLE_TIMER    10
 #define NO_SPACE_TIMER                      15
@@ -302,15 +297,12 @@ typedef struct akm_timer {
 	 akm_timer_state_t timer_state;
 } akm_timer_t;
 
-<<<<<<< HEAD
 typedef struct
 {
 	nodeid_t nodeId;
 	nodeid_t parentId;
 } parent_t;
 
-=======
->>>>>>> 34d4b822c576821feae8edfaac826663b4196244
 
 typedef struct akm_data
 {
@@ -327,11 +319,7 @@ typedef struct akm_data
 	authenticated_neighbor_t authenticated_neighbors[NODE_KEY_CACHE_SIZE+1];
 	akm_timer_t auth_timer[NODE_KEY_CACHE_SIZE+1];
 	akm_timer_t send_challenge_delay_timer[NODE_KEY_CACHE_SIZE+1];
-<<<<<<< HEAD
 	parent_t parent_cache[NODE_KEY_CACHE_SIZE + 1]; /* Parent cache for "insert-me" */
-=======
-	nodeid_t parent_cache[NODE_KEY_CACHE_SIZE+1]; /* Parent cache for "insert-me" */
->>>>>>> 34d4b822c576821feae8edfaac826663b4196244
 
 
 	akm_timer_t beacon_timer;
@@ -422,12 +410,9 @@ void handle_insert_node_request(insert_node_request_t* pinsertNode);
 void schedule_waiting_for_ack_timeout(nodeid_t *target);
 void schedule_beacon(void) ;
 void handle_cycle_detect(cycle_detect_t* pCycleDetect);
-<<<<<<< HEAD
 uip_lladdr_t*
 rpl_get_redundant_parent_lladdr(rpl_dag_t* dag);
 uip_lladdr_t *rpl_get_parent_lladdr(rpl_dag_t *dag, rpl_parent_t* parent);
-=======
->>>>>>> 34d4b822c576821feae8edfaac826663b4196244
 #ifdef AKM_DEBUG
 extern void set_sighandler(void (*handler)(int) );
 #endif
