@@ -19,7 +19,7 @@ endif
 ifdef DODAG_ROOT
 CFLAGS+=-DDODAG_ROOT=1 -DNODE_KEY_CACHE_SIZE=8
 else
-CFLAGS+=-DNODE_KEY_CACHE_SIZE=4
+CFLAGS+=-DNODE_KEY_CACHE_SIZE=2
 endif
 
 ifdef IS_CYCLE_DETECTION_ENABLED
@@ -32,5 +32,7 @@ endif
 ifdef PERIOD
 CFLAGS+=-DPERIOD=$(PERIOD)
 endif
+
+CC=gcc
 
 include $(CONTIKI)/Makefile.include

@@ -734,7 +734,9 @@ rpl_remove_parent(rpl_parent_t *parent)
 void
 rpl_nullify_parent(rpl_parent_t *parent)
 {
+  PRINTF("RPL: rpl_nullify_parent\n");
   rpl_dag_t *dag = parent->dag;
+  PRINTF("RPL: dag %lu\n", dag);
   /* This function can be called when the preferred parent is NULL, so we
      need to handle this condition in order to trigger uip_ds6_defrt_rm. */
   if(parent == dag->preferred_parent || dag->preferred_parent == NULL) {

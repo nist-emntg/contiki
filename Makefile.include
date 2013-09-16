@@ -1,4 +1,5 @@
 # -*- makefile -*-
+CC = gcc
 
 ifndef CONTIKI
   ${error CONTIKI not defined! You must specify where Contiki resides}

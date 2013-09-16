@@ -22,7 +22,7 @@
 #define NDEBUG
 #include <assert.h>
 #include <sys/logger.h>
-extern void rpl_remove_parent(rpl_dag_t *dag, rpl_parent_t *parent);
+extern void rpl_remove_parent(rpl_parent_t *parent);
 void free_slot(int slot);
 static void check_and_restart(void *ptr);
 static void akm_sighandler(int signo);
@@ -536,16 +536,17 @@ char* get_auth_state_as_string(authentication_state auth_state) {
 void remove_parent(nodeid_t* parent_nodeid) {
 	AKM_PRINTF("remove_parent: ");
 	AKM_PRINTADDR(parent_nodeid);
-	uip_ds6_nbr_t *nbr = uip_ds6_nbr_ll_lookup((uip_lladdr_t*) parent_nodeid);
-	if (nbr != NULL) {
-		rpl_parent_t* parent = rpl_find_parent(get_dodag_root(), &nbr->ipaddr);
+	// uip_ds6_nbr_t *nbr = uip_ds6_nbr_ll_lookup((uip_lladdr_t*) parent_nodeid);
+	uip_ipaddr_t* ipAddr = uip_ds6_nbr_ipaddr_from_lladdr((uip_lladdr_t*)parent_nodeid);
+	if (ipAddr != NULL) {
+		rpl_parent_t* parent = rpl_find_parent(get_dodag_root(), ipAddr);
 		if (parent != NULL) {
-			rpl_remove_parent(get_dodag_root(), parent);
+			AKM_PRINTF("Found parent rank = %d \n",parent->rank);
+			rpl_remove_parent(parent);
 		} else {
 			AKM_PRINTF("Could not find parent.\n");
 		}
-		/* Eject from the neighbor cache */
-		uip_ds6_nbr_rm(nbr);
+
 		log_msg_one_node(AKM_LOG_REMOVE_REDUNDANT_PARENT,"REMOVE_REDUNDANT_PARENT",strlen("REMOVE_REDUNDANT_PARENT"));
 
 	} else {
