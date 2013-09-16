@@ -54,7 +54,8 @@
 #include <limits.h>
 #include <string.h>
 
-#define DEBUG DEBUG_NONE
+//#define DEBUG DEBUG_NONE
+#define DEBUG DEBUG_PRINT
 #include "net/uip-debug.h"
 
 #if UIP_CONF_IPV6
@@ -1278,8 +1279,25 @@ rpl_process_dio(uip_ipaddr_t *from, rpl_dio_t *dio)
 
 int
 rpl_get_parent_count(rpl_dag_t *dag) {
-	int count = dag->preferred_parent != NULL ? 1:0;
-	return count + list_length(&dag->parents) ;
+	int count = 0;
+	rpl_parent_t *p = nbr_table_head(rpl_parents);
+	while(p != NULL ) {
+		if (p->dag == dag ) count ++;
+		p = nbr_table_next(rpl_parents,p);
+	}
+	return count;
+}
+
+void
+rpl_get_parents(rpl_dag_t* dag, rpl_parent_t** parents) {
+	rpl_parent_t *p = nbr_table_head(rpl_parents);
+	int i = 0;
+	while(p != NULL ) {
+		if ( p->dag == dag) {
+			parents[i++] = p;
+		}
+		p = nbr_table_next(rpl_parents,p);
+	}
 }
 /*---------------------------------------------------------------------------*/
 
@@ -1302,7 +1320,7 @@ rpl_get_first_parent(rpl_dag_t* dag) {
 uip_lladdr_t*
 rpl_get_redundant_parent_lladdr(rpl_dag_t* dag) {
 	rpl_parent_t *p = nbr_table_head(rpl_parents);
-	while(p != NULL && p->dag != dag && p == dag->preferred_parent) {
+	while(p != NULL &&( p->dag != dag || p == dag->preferred_parent)) {
 		p = nbr_table_next(rpl_parents,p);
 	}
 	if ( p != NULL ) {

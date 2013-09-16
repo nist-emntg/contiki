@@ -77,7 +77,7 @@ bool_t set_authentication_state(nodeid_t* node_id,
 			authentication_state currentAuthState =
 					AKM_DATA.authenticated_neighbors[i].state;
 			if (authState != currentAuthState) {
-
+				log_link_state_change(node_id,authState);
 				if (authState == AUTH_PENDING) {
 					schedule_pending_authentication_timer(node_id);
 				} else if (authState == OK_SENT_WAITING_FOR_ACK) {
@@ -114,7 +114,6 @@ bool_t set_authentication_state(nodeid_t* node_id,
 			AKM_DATA.authenticated_neighbors[i].state = authState;
 
 
-			log_link_state_change(node_id,authState);
 			retval = True;
 			break;
 		}
@@ -224,6 +223,10 @@ void handle_auth_challenge(auth_challenge_request_t* pauthChallenge) {
 	}
 	if ( ! is_capacity_available(sender_id) ) {
 		AKM_PRINTF("No capacity available -- not responding to challenge\n");
+		return;
+	}
+	if ( get_authentication_state(sender_id) != UNAUTHENTICATED) {
+		AKM_PRINTF("Auth in progress. Drop request ");
 		return;
 	}
 	auth_challenge_sc sc = pauthChallenge->status_code;

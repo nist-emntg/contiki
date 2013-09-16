@@ -652,26 +652,27 @@ int get_node_id_as_int(nodeid_t* pnodeId) {
 #ifdef AKM_DEBUG
 void log_parents() {
 	AKM_PRINTF("parents = {");
+	rpl_dag_t* dodagRoot = get_dodag_root();
 
-	if (get_dodag_root() != NULL) {
-		rpl_parent_t* parent = rpl_get_first_parent(get_dodag_root());
-		int count = rpl_get_parent_count(get_dodag_root());
+	if (dodagRoot != NULL) {
+
+		int count = rpl_get_parent_count(dodagRoot);
 		AKM_PRINTF(" count = %d\n",count);
 
 		if ( count != 0) {
-			int* p = (uint16_t*) malloc( sizeof(uint16_t) * count);
-
+			rpl_parent_t** rpl_parents = (rpl_parent_t**) malloc(count*sizeof(rpl_parent_t*));
+			uint16_t* p = (uint16_t*) malloc( sizeof(uint16_t) * (count + 1));
+			rpl_get_parents(dodagRoot ,rpl_parents);
 			int i = 0;
-			p[i++] = get_node_id_as_int
-					(rpl_get_parent_lladdr(get_dodag_root(),get_dodag_root()->preferred_parent));
-			while (parent != NULL) {
-				//struct uip_neighbor_addr* pneighbor = uip_neighbor_lookup(&neighbor->ipaddr);
-				p[i++] = get_node_id_as_int(rpl_get_parent_lladdr(get_dodag_root(),parent));
-				parent = parent->next;
+			for ( i = 0 ; i < count; i++ ) {
+				p[i] = get_node_id_as_int(rpl_get_parent_lladdr(dodagRoot,rpl_parents[i]));
+				AKM_PRINTADDR(rpl_get_parent_lladdr(dodagRoot,rpl_parents[i]));
+				AKM_PRINTF("Parent ID = %d\n",p[i]);
 			}
 			p[count] = 0;
 			log_msg_many_nodes(AKM_LOG_PARENT_ID,p,"RPL",3);
 			free(p);
+			free(rpl_parents);
 		}
 
 	}
