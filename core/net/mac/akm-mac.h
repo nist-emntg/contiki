@@ -40,7 +40,7 @@
 	((uint8_t *)addr)[6], ((uint8_t *)addr)[7]); }
 #else
 #define AKM_PRINTF(...) do {} while(0)
-#define AKM_PRINTADDR(addr)
+#define AKM_PRINTADDR(addr) do {} while(0)
 #endif
 
 #if defined(AKM_DEBUG) && defined(CONTIKI_TARGET_NATIVE)
