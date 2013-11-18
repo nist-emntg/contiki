@@ -61,7 +61,7 @@ nodeid_t * get_parent_id() {
 		return NULL;
 	}
 
-	 return rpl_get_parent_lladdr(get_dodag_root(),get_dodag_root()->preferred_parent);
+	 return (nodeid_t *) rpl_get_parent_lladdr(get_dodag_root(),get_dodag_root()->preferred_parent);
 }
 /*--------------------------------------------------------------------------*/
 bool_t is_nodeid_zero(nodeid_t* pnodeId) {

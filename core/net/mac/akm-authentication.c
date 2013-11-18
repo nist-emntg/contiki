@@ -279,7 +279,7 @@ void handle_auth_challenge_response(auth_challenge_response_t* pacr) {
 				/* Break the security assoc. with my parent.
 				 * Child now owns the slot
 				 */
-				nodeid_t* pparent = rpl_get_redundant_parent_lladdr(get_dodag_root());
+				nodeid_t* pparent = (nodeid_t *) rpl_get_redundant_parent_lladdr(get_dodag_root());
 				AKM_PRINTF(
 						"breaking security association with redundant parent");
 				AKM_PRINTADDR(pparent);

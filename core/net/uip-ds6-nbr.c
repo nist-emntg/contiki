@@ -122,7 +122,7 @@ uip_ds6_nbr_rm(uip_ds6_nbr_t *nbr)
     NEIGHBOR_STATE_CHANGED(nbr);
     nbr_table_remove(ds6_neighbors, nbr);
     uip_lladdr_t* lladdr = uip_ds6_nbr_lladdr_from_ipaddr(&nbr->ipaddr);
-    free_security_association(lladdr);
+    free_security_association((nodeid_t *) lladdr);
   }
   return;
 }
