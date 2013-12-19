@@ -1284,7 +1284,7 @@ rpl_get_parent_count(rpl_dag_t *dag) {
 	int count = 0;
 	rpl_parent_t *p = nbr_table_head(rpl_parents);
 	while(p != NULL ) {
-		if (p->dag == dag ) count ++;
+		if (p->dag == dag && p->rank < dag->rank) count ++;
 		p = nbr_table_next(rpl_parents,p);
 	}
 	return count;
@@ -1295,7 +1295,7 @@ rpl_get_parents(rpl_dag_t* dag, rpl_parent_t** parents) {
 	rpl_parent_t *p = nbr_table_head(rpl_parents);
 	int i = 0;
 	while(p != NULL ) {
-		if ( p->dag == dag) {
+		if ( p->dag == dag && p->rank < dag->rank) {
 			parents[i++] = p;
 		}
 		p = nbr_table_next(rpl_parents,p);
