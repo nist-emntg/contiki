@@ -1,0 +1,3 @@
+[submodule "core/lib/certificate"]
+	path = core/lib/certificate
+	url = https://github.com/nist-emntg/ecc-light-certificate.git
