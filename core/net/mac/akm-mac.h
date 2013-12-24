@@ -19,6 +19,7 @@
 #include "rpl.h"
 #include "net/mac/frame802154.h"
 #include "rimeaddr.h"
+#include "certificate.h"
 
 
 #define PRINT_ERROR printf
@@ -95,14 +96,8 @@ void akm_route_message();
 
 
 /* Placeholder */
-typedef struct certificate{
-	char dummy[32];
-} certificate_t;
-
-
-/* Placeholder */
 typedef struct session_key {
-	char dummy[32];
+	uint8_t data[SHA256_DIGEST_LENGTH];
 } session_key_t;
 
 #define AKM_DISPATCH_BYTE 0x47 /*binary 0100111 -- reserved value in 6lowpan */
@@ -159,20 +154,20 @@ typedef struct cycle_detect {
 										(a == 2 ? "AUTH_REDUNDANT_PARENT_AVAILABLE" : \
 										"AUTH_NO_SPACE" ))
 
-
+#define AUTH_MSG_LEN        (PUB_CERT_SIZE + 2*NUMBYTES + SIG_LEN)
 
 typedef struct  {
 	auth_challenge_sc status_code; /* Indicates space availability of sender */
+	uint8_t crypto_payload[AUTH_MSG_LEN];
 } auth_challenge_request_t;
 
 typedef struct auth_challenge_response {
 	auth_challenge_sc request_status_code;
-	session_key_t session_key;
+	uint8_t crypto_payload[AUTH_MSG_LEN];
 } auth_challenge_response_t;
 
 typedef struct auth_ack {
 	nodeid_t parent_id;
-	session_key_t session_key;
 } auth_ack_t;
 
 
@@ -270,6 +265,11 @@ typedef struct
 {
 	nodeid_t node_id;
 	session_key_t session_key;
+	/* the following three fields could/should be discarded after
+	 * the session_key is derived */
+	NN_DIGIT ecdh_secret[NUMWORDS];
+	uint8_t tmp_point[2 * NUMBYTES];
+	uint8_t shared_secret[2 * NUMBYTES];
 	authentication_state state;
 	uint16_t time_since_last_ping;
 } authenticated_neighbor_t;
@@ -364,10 +364,7 @@ void take_temporary_link();
 void reset_beacon();
 void schedule_send_challenge_timer(int time, nodeid_t* target,beacon_t* pbeacon,
 		auth_challenge_sc pstate);
-bool_t replace_authenticated_neighbor(nodeid_t *pauthNeighbor,
-		nodeid_t *newNeighbor, session_key_t* key);
-void add_authenticated_neighbor(nodeid_t* pnodeId,
-		session_key_t* sessionKey, authentication_state authState) ;
+int add_authenticated_neighbor(nodeid_t* pnodeId, authentication_state authState);
 void schedule_pending_authentication_timer(nodeid_t *target);
 void stop_auth_timer(nodeid_t* nodeid);
 void send_insert_node_request(nodeid_t* target,nodeid_t* parentId);
@@ -381,11 +378,8 @@ nodeid_t* grab_dodag_parent();
 
 nodeid_t * get_parent_id();
 void schedule_challenge_sent_timeout(nodeid_t *target);
-void sec_generate_session_key(nodeid_t* pnodeid);
 void send_break_security_association_reply(nodeid_t *nodeId, nodeid_t* requestingNodeid);
 void send_break_security_association(nodeid_t* target, bsa_continuation continuation, nodeid_t* pnodeid);
-bool_t sec_verify_auth_response(auth_challenge_response_t *pauthResponse);
-bool_t sec_verify_auth_request(auth_challenge_request_t* pauthChallengeRequest);
 int find_authenticated_neighbor(nodeid_t* target);
 void send_confirm_temporary_link(nodeid_t* target, nodeid_t* parentId, nodeid_t* child);
 void remove_parent(nodeid_t* parent_nodeid);

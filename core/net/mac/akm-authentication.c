@@ -14,10 +14,13 @@
 #include  "packetbuf.h"
 #include "clock.h"
 #include <sys/logger.h>
+#include "lib/assert.h"
+#include "certificate.h"
+#include "credential.h"
 
 struct do_send_challenge_data {
 	nodeid_t sender_id;
-	bool_t   is_sender_autheticated;
+	bool_t   is_sender_authenticated;
 	auth_challenge_sc status_code;
 };
 
@@ -95,14 +98,12 @@ bool_t set_authentication_state(nodeid_t* node_id,
 					if (currentAuthState != UNAUTHENTICATED) {
 						remove_parent(
 								&AKM_DATA.authenticated_neighbors[i].node_id);
-					}
-					if ( currentAuthState == AUTHENTICATED) {
+					} else {
 						STOP_CYCLE_DETECT_TIMER();
 					}
 					free_slot(i);
 					AKM_DATA.authenticated_neighbors[i].time_since_last_ping = 0;
 					reset_beacon();
-
 				}
 			}
 #ifdef AKM_DEBUG
@@ -149,17 +150,78 @@ get_session_key(nodeid_t *neighbor_id) {
 	}
 	return (session_key_t *) 0;
 }
+/*---------------------------------------------------------------------------*/
+void crypto_auth_dump_session_key(authenticated_neighbor_t * neighbor) {
+#ifdef AKM_DEBUG
+	int i;
+	for(i=0; i< sizeof(neighbor->session_key); i++)
+		printf("%x", ((uint8_t *) &neighbor->session_key)[i]);
+#endif
+}
+/*---------------------------------------------------------------------------*/
+static int crypto_auth_prepare(uint8_t buf[AUTH_MSG_LEN],
+						authenticated_neighbor_t * neighbor) {
+	int buf_len = 0;
+	uint8_t point[2 * NUMBYTES];
 
+	AKM_PRINTF("Preparing authentication msg\n");
+	/* send in the public certificate */
+	serialize_pub_cert(&cert->pub_cert, buf);
+	buf_len += PUB_CERT_SIZE;
+
+	/* compute the local ECDH secret */
+	ecc_ecdh_from_host(neighbor->ecdh_secret, point);
+	memcpy(buf + buf_len, point, sizeof(point));
+	buf_len += sizeof(point);
+	/* add the signature */
+	certificate_ecdsa_sign(cert, point, sizeof(point), buf + buf_len);
+	buf_len += SIG_LEN;
+
+	return buf_len;
+}
+/*---------------------------------------------------------------------------*/
+static void crypto_auth_extract_data(uint8_t buf[AUTH_MSG_LEN],
+									 authenticated_neighbor_t * neighbor) {
+	memcpy(neighbor->tmp_point, &buf[PUB_CERT_SIZE], 2*NUMBYTES);
+}
+
+/*---------------------------------------------------------------------------*/
+static int crypto_auth_verify(uint8_t buf[AUTH_MSG_LEN]) {
+	s_pub_certificate other_cert;
+
+	AKM_PRINTF("Verifying authentication message\n");
+
+	/* authentication part of the message is stored in buf */
+	deserialize_pub_cert(buf, &other_cert);
+
+	/* verify that the server certificate is valid */
+	if (verify_certificate(cacert, &other_cert)) {
+		AKM_PRINTF("Server certificate is not trusted\n");
+		return -2;
+	}
+
+	if (certificate_ecdsa_verify(&other_cert,
+								 &((uint8_t *) buf)[PUB_CERT_SIZE], /* this is the point d'.G */
+								 2*NUMBYTES,
+								 &((uint8_t *) buf)[PUB_CERT_SIZE + 2 * NUMBYTES] /* this is the signature */
+								 )) {
+		AKM_PRINTF("Signature does not match\n");
+		return -1;
+	} else {
+		AKM_PRINTF("Signature d'.G is valid\n");
+		return 1;
+	}
+}
 /*---------------------------------------------------------------------------*/
 void do_send_challenge(void* pvoid) {
 
 	struct do_send_challenge_data *pdata = (struct do_send_challenge_data *)pvoid;
 
 	nodeid_t* target = (nodeid_t*) &pdata->sender_id;
-	bool_t is_authenticated = pdata->is_sender_autheticated;
+	bool_t is_authenticated = pdata->is_sender_authenticated;
 
-	AKM_PRINTF("do_send_challenge: target = ")
-;	AKM_PRINTADDR(target);
+	AKM_PRINTF("do_send_challenge: target = ");
+	AKM_PRINTADDR(target);
 
 	AKM_MAC_OUTPUT.data.auth_challenge.status_code = pdata->status_code;
 	bool_t bSendChallenge = True;
@@ -170,8 +232,11 @@ void do_send_challenge(void* pvoid) {
 
 	/* For later : reduce the amount of searching by defining new index methods */
 	int i = find_authenticated_neighbor(target);
+	assert(i != -1);
 	akm_timer_stop(&AKM_DATA.send_challenge_delay_timer[i]);
 	if (bSendChallenge) {
+		crypto_auth_prepare(AKM_MAC_OUTPUT.data.auth_challenge.crypto_payload,
+							&AKM_DATA.authenticated_neighbors[i]);
 		akm_send(target, AUTH_CHALLENGE,
 				sizeof(AKM_MAC_OUTPUT.data.auth_challenge));
 		set_authentication_state(target, CHALLENGE_SENT_WAITING_FOR_OK);
@@ -188,17 +253,17 @@ void send_challenge(nodeid_t* target, beacon_t * pbeacon) {
 	AKM_PRINTADDR(target);
 	if (is_capacity_available(NULL)) {
 		time = random_rand() % SPACE_AVAILABLE_TIMER + 1;
-		add_authenticated_neighbor(target, NULL, PENDING_SEND_CHALLENGE);
+		add_authenticated_neighbor(target, PENDING_SEND_CHALLENGE);
 		schedule_send_challenge_timer(time, target, pbeacon,AUTH_SPACE_AVAILABLE);
 	} else if (is_authenticated() && is_redundant_parent_available() && is_temp_link_available()) {
-		add_authenticated_neighbor(target, NULL, PENDING_SEND_CHALLENGE);
+		add_authenticated_neighbor(target, PENDING_SEND_CHALLENGE);
 		time = SPACE_AVAILABLE_TIMER
 				+ random_rand() % REDUNDANT_PARENT_AVAILABLE_TIMER;
 		take_temporary_link(target);
 		schedule_send_challenge_timer(time, target, pbeacon,AUTH_REDUNDANT_PARENT_AVAILABLE);
 
 	} else if ( is_temp_link_available() && !pbeacon->is_authenticated ) {
-		add_authenticated_neighbor(target, NULL, PENDING_SEND_CHALLENGE);
+		add_authenticated_neighbor(target, PENDING_SEND_CHALLENGE);
 		time = SPACE_AVAILABLE_TIMER + REDUNDANT_PARENT_AVAILABLE_TIMER
 				+ random_rand() % NO_SPACE_TIMER;
 		AKM_PRINTF("No space available delaying for %d \n ",time);
@@ -215,11 +280,12 @@ void send_challenge(nodeid_t* target, beacon_t * pbeacon) {
 /*---------------------------------------------------------------------------*/
 void handle_auth_challenge(auth_challenge_request_t* pauthChallenge) {
 	nodeid_t* sender_id = &AKM_DATA.sender_id;
-	AKM_PRINTF("handle_auth_challenge : ")
-;	AKM_PRINTADDR(sender_id);
-	if (!sec_verify_auth_request(pauthChallenge)) {
-		AKM_PRINTF("Failed to verify auth challenge\n")
-;		return;
+	authenticated_neighbor_t * neighbor_slot = NULL;
+	AKM_PRINTF("handle_auth_challenge : ");
+	AKM_PRINTADDR(sender_id);
+	if (crypto_auth_verify(pauthChallenge->crypto_payload) != 1) {
+		AKM_PRINTF("Failed to verify auth challenge\n");
+		return;
 	}
 	if ( ! is_capacity_available(sender_id) ) {
 		AKM_PRINTF("No capacity available -- not responding to challenge\n");
@@ -232,25 +298,43 @@ void handle_auth_challenge(auth_challenge_request_t* pauthChallenge) {
 	auth_challenge_sc sc = pauthChallenge->status_code;
 
 	AKM_MAC_OUTPUT.data.auth_challenge_response.request_status_code = sc;
-	sec_generate_session_key(sender_id);
+	neighbor_slot = &AKM_DATA.authenticated_neighbors[
+						add_authenticated_neighbor(sender_id,
+												   OK_SENT_WAITING_FOR_ACK)];
+	crypto_auth_extract_data(pauthChallenge->crypto_payload,
+							 neighbor_slot);
+	crypto_auth_prepare(AKM_MAC_OUTPUT.data.auth_challenge_response.crypto_payload,
+						neighbor_slot);
+	ecc_ecdh_from_network(neighbor_slot->ecdh_secret,
+						  neighbor_slot->tmp_point,
+						  neighbor_slot->shared_secret);
+	ecc_ecdh_derive_key(neighbor_slot->shared_secret,
+						neighbor_slot->session_key.data);
+	AKM_PRINTF("Established session key with node ");
+	AKM_PRINTADDR(&neighbor_slot->node_id);
+	AKM_PRINTF("key: ");
+	crypto_auth_dump_session_key(neighbor_slot);
+#ifdef AKM_DEBUG
+	printf("\n");
+#endif
+
 	akm_send(sender_id, AUTH_CHALLENGE_RESPONSE,
 			sizeof(AKM_MAC_OUTPUT.data.auth_challenge_response));
-	add_authenticated_neighbor(sender_id,
-			&AKM_MAC_OUTPUT.data.auth_challenge_response.session_key,
-			OK_SENT_WAITING_FOR_ACK);
-
 }
 /*----------------------------------------------------------------------*/
 
 void handle_auth_challenge_response(auth_challenge_response_t* pacr) {
-
+	int i;
 	nodeid_t* sender_id = &AKM_DATA.sender_id;
-	AKM_PRINTF("handle_auth_challenge_response ")
-;	AKM_PRINTADDR(sender_id);
-	auth_challenge_sc acr = pacr->request_status_code;
-	AKM_PRINTF("request_status_code = %s \n",AUTH_STATUS_CODE_AS_STRING(acr));
+	authenticated_neighbor_t * neighbor_slot = NULL;
 
-	if (!sec_verify_auth_response(pacr)) {
+	AKM_PRINTF("handle_auth_challenge_response ");
+	AKM_PRINTADDR(sender_id);
+	auth_challenge_sc acr = pacr->request_status_code;
+	AKM_PRINTF("request_status_code = %s \n", AUTH_STATUS_CODE_AS_STRING(acr));
+
+	if (crypto_auth_verify(pacr->crypto_payload) != 1) {
+		AKM_PRINTF("Failed to verify auth challenge response\n");
 		return;
 	} else {
 		if (AKM_DATA.is_dodag_root) {
@@ -260,10 +344,12 @@ void handle_auth_challenge_response(auth_challenge_response_t* pacr) {
 				} else {
 					send_break_security_association(sender_id,
 							BSA_CONTINUATION_NONE, NULL);
+					return;
 				}
 			} else {
 				send_break_security_association(sender_id,
 						BSA_CONTINUATION_NONE, NULL);
+				return;
 			}
 		} else {
 			if (acr == AUTH_SPACE_AVAILABLE) {
@@ -274,7 +360,7 @@ void handle_auth_challenge_response(auth_challenge_response_t* pacr) {
 					set_authentication_state(sender_id, AUTHENTICATED);
 				}
 			} else if (acr == AUTH_REDUNDANT_PARENT_AVAILABLE ) {
-				/* A redundant paprent is available. So take that slot. */
+				/* A redundant parent is available. So take that slot. */
 				send_auth_ack(sender_id, NULL);
 				/* Break the security assoc. with my parent.
 				 * Child now owns the slot
@@ -297,16 +383,38 @@ void handle_auth_challenge_response(auth_challenge_response_t* pacr) {
 				 */
 				set_authentication_state(sender_id, AUTH_PENDING);
 				send_auth_ack(sender_id, pparent);
+				return;
 			}
 		}
+		for (i = 0; i < NELEMS(AKM_DATA.authenticated_neighbors); i++) {
+			if (rimeaddr_cmp(&AKM_DATA.authenticated_neighbors[i].node_id,
+							 sender_id)) {
+				neighbor_slot = &AKM_DATA.authenticated_neighbors[i];
+				break;
+			}
+		}
+		assert(neighbor_slot);
+		crypto_auth_extract_data(pacr->crypto_payload,
+								 neighbor_slot);
+		ecc_ecdh_from_network(neighbor_slot->ecdh_secret,
+							  neighbor_slot->tmp_point,
+							  neighbor_slot->shared_secret);
+		ecc_ecdh_derive_key(neighbor_slot->shared_secret,
+							neighbor_slot->session_key.data);
+		AKM_PRINTF("Established session key with node ");
+		AKM_PRINTADDR(sender_id);
+		AKM_PRINTF("key: ");
+		crypto_auth_dump_session_key(neighbor_slot);
+#ifdef AKM_DEBUG
+		printf("\n");
+#endif
 	}
-
 }
 
 /*---------------------------------------------------------------------------*/
 void handle_auth_ack(auth_ack_t* pauthAck) {
-	AKM_PRINTF("handle_auth_ack : ")
-;	nodeid_t* sender = &AKM_DATA.sender_id;
+	AKM_PRINTF("handle_auth_ack : ");
+	nodeid_t* sender = &AKM_DATA.sender_id;
 	AKM_PRINTADDR(sender);
 
 	nodeid_t *pparent = &pauthAck->parent_id;
@@ -315,8 +423,7 @@ void handle_auth_ack(auth_ack_t* pauthAck) {
 
 	if (is_nodeid_zero(pparent)) {
 		if (get_authentication_state(sender) == OK_SENT_WAITING_FOR_ACK) {
-			add_authenticated_neighbor(sender, &pauthAck->session_key,
-					AUTHENTICATED);
+			add_authenticated_neighbor(sender, AUTHENTICATED);
 		}
 	} else {
 		bool_t foundInParentCache = False;
@@ -371,7 +478,6 @@ void send_auth_ack(nodeid_t* target_id, nodeid_t * pparent) {
 ;	AKM_PRINTADDR(target_id);
 	AKM_PRINTF("parent_id = ");
 	AKM_PRINTADDR(pparent);
-	sec_generate_session_key(target_id);
 	if (AKM_DATA.is_dodag_root) {
 		memset(&AKM_MAC_OUTPUT.data.auth_ack.parent_id, 0, sizeof(nodeid_t));
 		akm_send(target_id, AUTH_ACK, sizeof(AKM_MAC_OUTPUT.data.auth_ack));
@@ -396,7 +502,7 @@ void schedule_send_challenge_timer(int time, nodeid_t* target,
 	if (i != -1) {
 		struct do_send_challenge_data timerData;
 		rimeaddr_copy(&timerData.sender_id,target);
-		timerData.is_sender_autheticated = pbeacon->is_authenticated;
+		timerData.is_sender_authenticated = pbeacon->is_authenticated;
 		timerData.status_code = statusCode;
 		akm_timer_set(&AKM_DATA.send_challenge_delay_timer[i], time,
 				do_send_challenge, &timerData, sizeof(timerData), TTYPE_ONESHOT);

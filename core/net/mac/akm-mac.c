@@ -19,6 +19,8 @@
 #include "clock.h"
 #include "rpl/rpl.h"
 #include "random.h"
+#include "certificate.h"
+#include "credential.h"
 #define NDEBUG
 #include <assert.h>
 #include <sys/logger.h>
@@ -110,17 +112,6 @@ void free_security_association(nodeid_t* pnodeId) {
 }
 
 /*---------------------------------------------------------------------------*/
-static void insert_id(int location, nodeid_t* pNodeId,
-		session_key_t* sessionKey) {
-
-	rimeaddr_copy(&AKM_DATA.authenticated_neighbors[location].node_id, pNodeId);
-	if (sessionKey != NULL) {
-		memcpy(&AKM_DATA.authenticated_neighbors[location].session_key,
-				sessionKey,
-				sizeof(AKM_DATA.authenticated_neighbors[location].session_key));
-	}
-}
-
 void akm_timer_set(akm_timer_t *c, clock_time_t t, void (*f)(void *), void *ptr,
 		int datasize, ttype_t timerType) {
 #ifdef AKM_DEBUG
@@ -233,8 +224,8 @@ static void check_and_restart(void *ptr) {
 	}
 }
 /*--------------------------------------------------------------------------*/
-void add_authenticated_neighbor(nodeid_t* pnodeId, session_key_t* sessionKey,
-		authentication_state authState) {
+int add_authenticated_neighbor(nodeid_t* pnodeId,
+							   authentication_state authState) {
 
 	AKM_PRINTF("add_authenticated_neighbor : authState =  %s ",
 			get_auth_state_as_string(authState));
@@ -242,13 +233,14 @@ void add_authenticated_neighbor(nodeid_t* pnodeId, session_key_t* sessionKey,
 	int i = 0;
 	for (i = 0; i < NELEMS(AKM_DATA.authenticated_neighbors); i++) {
 		if (AKM_DATA.authenticated_neighbors[i].state == UNAUTHENTICATED) {
-			insert_id(i, pnodeId, sessionKey);
+			rimeaddr_copy(&AKM_DATA.authenticated_neighbors[i].node_id, pnodeId);
 			set_authentication_state(pnodeId, authState);
 			break;
 		}
 	}
 	if (!AKM_DATA.is_dodag_root)
 		reset_beacon();
+	return i;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -268,23 +260,6 @@ bool_t is_redundant_parent_available() {
 			&& rpl_get_parent_count(get_dodag_root()) > 1;
 	AKM_PRINTF("is_redundant_parent_available : %d\n", redundantParentFlag);
 	return redundantParentFlag;
-}
-
-/*---------------------------------------------------------------------------*/
-void sec_generate_session_key(nodeid_t* nodeId) {
-	// TODO complete this stub.
-	return;
-}
-/*---------------------------------------------------------------------------*/
-bool_t sec_verify_auth_response(auth_challenge_response_t *pauthResponse) {
-	// TODO complete this stub
-	return 1;
-}
-
-/*---------------------------------------------------------------------------*/
-bool_t sec_verify_auth_request(auth_challenge_request_t *pauthRequest) {
-	// TODO complete this stub
-	return 1;
 }
 /*---------------------------------------------------------------------------*/
 void akm_send(nodeid_t *targetId, akm_op_t command, int size) {
@@ -488,6 +463,8 @@ static void init(void) {
 	AKM_PRINTF("akm-mac : init()");
 	AKM_PRINTADDR(get_node_id());
 
+	init_crypto();
+
 	AKM_MAC_OUTPUT.mac_header.protocol_id = AKM_DISPATCH_BYTE;
 	/*zero out the global data block */
 	memset(&AKM_DATA, 0, sizeof(AKM_DATA));
@@ -578,7 +555,7 @@ void akm_packet_input(void) {
 
 	akm_mac_t* pakm_mac = packetbuf_dataptr();
 
-	AKM_PRINTF("akm_mac::datalen = %d sizeof buffer = %d  protocol_id = %x \n",
+	AKM_PRINTF("akm_mac::datalen = %d sizeof buffer = %d  protocol_id = %#lx \n",
 			packetbuf_datalen(), sizeof(AKM_MAC_INPUT),
 			pakm_mac->mac_header.protocol_id);
 	if (pakm_mac->mac_header.protocol_id == AKM_DISPATCH_BYTE) {
