@@ -18,6 +18,9 @@ static clock_time_t get_beacon_interval();
 /*---------------------------------------------------------------------------*/
 void send_beacon() {
 	AKM_PRINTF("send_beacon\n");
+#if BENCH
+	printf("bench: send_beacon\n");
+#endif
 	AKM_MAC_OUTPUT.data.beacon.is_authenticated = is_authenticated();
 	AKM_MAC_OUTPUT.data.beacon.is_capacity_available = is_capacity_available(
 			NULL);

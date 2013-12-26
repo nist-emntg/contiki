@@ -424,6 +424,9 @@ void handle_auth_ack(auth_ack_t* pauthAck) {
 	if (is_nodeid_zero(pparent)) {
 		if (get_authentication_state(sender) == OK_SENT_WAITING_FOR_ACK) {
 			add_authenticated_neighbor(sender, AUTHENTICATED);
+#if BENCH
+			printf("bench: received ACK, authenticated\n");
+#endif
 		}
 	} else {
 		bool_t foundInParentCache = False;
@@ -478,6 +481,9 @@ void send_auth_ack(nodeid_t* target_id, nodeid_t * pparent) {
 	AKM_PRINTADDR(target_id);
 	AKM_PRINTF("parent_id = ");
 	AKM_PRINTADDR(pparent);
+#if BENCH
+	printf("bench: ACK sent, node authenticated\n");
+#endif
 	if (AKM_DATA.is_dodag_root) {
 		memset(&AKM_MAC_OUTPUT.data.auth_ack.parent_id, 0, sizeof(nodeid_t));
 		akm_send(target_id, AUTH_ACK, sizeof(AKM_MAC_OUTPUT.data.auth_ack));

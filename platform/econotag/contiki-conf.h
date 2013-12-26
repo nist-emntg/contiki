@@ -237,6 +237,8 @@
 
 #define UIP_CONF_TCP_SPLIT       0
 
+#define BENCH					 1
+
 /* include the project config */
 /* PROJECT_CONF_H might be defined in the project Makefile */
 #ifdef PROJECT_CONF_H
