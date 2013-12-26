@@ -418,8 +418,8 @@ void handle_auth_ack(auth_ack_t* pauthAck) {
 	AKM_PRINTADDR(sender);
 
 	nodeid_t *pparent = &pauthAck->parent_id;
-	AKM_PRINTF("parent ID : ")
-;	AKM_PRINTADDR(pparent);
+	AKM_PRINTF("parent ID : ");
+	AKM_PRINTADDR(pparent);
 
 	if (is_nodeid_zero(pparent)) {
 		if (get_authentication_state(sender) == OK_SENT_WAITING_FOR_ACK) {
@@ -474,8 +474,8 @@ void handle_auth_ack(auth_ack_t* pauthAck) {
 /*----------------------------------------------------------------------*/
 
 void send_auth_ack(nodeid_t* target_id, nodeid_t * pparent) {
-	AKM_PRINTF("send_auth_ack : ")
-;	AKM_PRINTADDR(target_id);
+	AKM_PRINTF("send_auth_ack : ");
+	AKM_PRINTADDR(target_id);
 	AKM_PRINTF("parent_id = ");
 	AKM_PRINTADDR(pparent);
 	if (AKM_DATA.is_dodag_root) {
