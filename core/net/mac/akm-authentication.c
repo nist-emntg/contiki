@@ -219,7 +219,9 @@ void do_send_challenge(void* pvoid) {
 
 	nodeid_t* target = (nodeid_t*) &pdata->sender_id;
 	bool_t is_authenticated = pdata->is_sender_authenticated;
-
+#if BENCH
+	printf("bench: do_send_challenge\n");
+#endif
 	AKM_PRINTF("do_send_challenge: target = ");
 	AKM_PRINTADDR(target);
 
