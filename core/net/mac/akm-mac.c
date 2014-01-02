@@ -419,13 +419,19 @@ void akm_route_message() {
 
 	switch (op) {
 	case BEACON:
-		handle_beacon(&pakm_mac->data.beacon);
+		if ( !AKM_DATA.is_handling_challenge) {
+			handle_beacon(&pakm_mac->data.beacon);
+		}
 		break;
 	case AUTH_CHALLENGE:
+		AKM_DATA.is_handling_challenge = True;
 		handle_auth_challenge(&pakm_mac->data.auth_challenge);
+		AKM_DATA.is_handling_challenge = False;
 		break;
 	case AUTH_CHALLENGE_RESPONSE:
+		AKM_DATA.is_handling_challenge = True;
 		handle_auth_challenge_response(&pakm_mac->data.auth_challenge_response);
+		AKM_DATA.is_handling_challenge = False;
 		break;
 	case AUTH_ACK:
 		handle_auth_ack(&pakm_mac->data.auth_ack);
