@@ -429,6 +429,12 @@ void handle_auth_ack(auth_ack_t* pauthAck) {
 #if BENCH
 			printf("bench: received ACK, authenticated\n");
 #endif
+#if CONTIKI_TARGET_ECONOTAG
+		  /* turn the green led on */
+		  GPIO->FUNC_SEL.GPIO_45 = 1; /* 1: led ON, 0: led OFF */
+		  GPIO->PAD_DIR_SET.GPIO_45 = 0;
+		  GPIO->DATA_SET.GPIO_45 = 1;
+#endif
 		}
 	} else {
 		bool_t foundInParentCache = False;
@@ -485,6 +491,12 @@ void send_auth_ack(nodeid_t* target_id, nodeid_t * pparent) {
 	AKM_PRINTADDR(pparent);
 #if BENCH
 	printf("bench: ACK sent, node authenticated\n");
+#endif
+#if CONTIKI_TARGET_ECONOTAG
+	/* turn the green led on */
+	GPIO->FUNC_SEL.GPIO_45 = 1; /* 1: led ON, 0: led OFF */
+	GPIO->PAD_DIR_SET.GPIO_45 = 0;
+	GPIO->DATA_SET.GPIO_45 = 1;
 #endif
 	if (AKM_DATA.is_dodag_root) {
 		memset(&AKM_MAC_OUTPUT.data.auth_ack.parent_id, 0, sizeof(nodeid_t));

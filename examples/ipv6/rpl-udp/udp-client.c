@@ -39,6 +39,7 @@
 #endif
 #include <stdio.h>
 #include <string.h>
+#include "dev/button-sensor.h"
 
 #define UDP_CLIENT_PORT 8765
 #define UDP_SERVER_PORT 5678
@@ -79,15 +80,27 @@ tcpip_handler(void)
 static void
 send_packet(void *ptr)
 {
-  static int seq_id;
+  int watt_cons;
   char buf[MAX_PAYLOAD_LEN];
 
-  seq_id++;
-  PRINTF("DATA send to %d 'Hello %d'\n",
-         server_ipaddr.u8[sizeof(server_ipaddr.u8) - 1], seq_id);
-  sprintf(buf, "Hello %d from the client", seq_id);
+  watt_cons = random_rand() % 100;
+  PRINTF("DATA meter reading send to %d 'READING %d'\n",
+		 server_ipaddr.u8[sizeof(server_ipaddr.u8) - 1], watt_cons);
+  sprintf(buf, "READING %d", watt_cons);
   uip_udp_packet_sendto(client_conn, buf, strlen(buf),
                         &server_ipaddr, UIP_HTONS(UDP_SERVER_PORT));
+}
+/*---------------------------------------------------------------------------*/
+static void
+send_alert()
+{
+  char buf[MAX_PAYLOAD_LEN];
+
+  PRINTF("DATA alert send to %d 'ALERT'\n",
+		 server_ipaddr.u8[sizeof(server_ipaddr.u8) - 1]);
+  sprintf(buf, "ALERT");
+  uip_udp_packet_sendto(client_conn, buf, strlen(buf),
+						&server_ipaddr, UIP_HTONS(UDP_SERVER_PORT));
 }
 /*---------------------------------------------------------------------------*/
 static void
@@ -156,10 +169,21 @@ PROCESS_THREAD(udp_client_process, ev, data)
   PROCESS_PAUSE();
 
   set_global_address();
-  
+
+  SENSORS_ACTIVATE(button_sensor);
+
   PRINTF("UDP client process started\n");
 
   print_local_addresses();
+
+#if CONTIKI_TARGET_ECONOTAG
+	  /* turn on red led when TX packet */
+	  GPIO->FUNC_SEL.GPIO_44 = 1;
+	  GPIO->PAD_DIR_SET.GPIO_44 = 0;
+	  GPIO->DATA_SET.GPIO_44 = 1;
+#endif
+
+  NETSTACK_MAC.off(1);
 
   /* new connection with remote host */
   client_conn = udp_new(NULL, UIP_HTONS(UDP_SERVER_PORT), NULL); 
@@ -184,8 +208,11 @@ PROCESS_THREAD(udp_client_process, ev, data)
     PROCESS_YIELD();
     if(ev == tcpip_event) {
       tcpip_handler();
-    }
-    
+	} else if (ev == sensors_event && data == &button_sensor) {
+	  PRINTF("Button pressed: sending an alert\n");
+	  send_alert();
+	}
+
     if(etimer_expired(&periodic)) {
       etimer_reset(&periodic);
       ctimer_set(&backoff_timer, SEND_TIME, send_packet, NULL);

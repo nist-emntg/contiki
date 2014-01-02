@@ -63,10 +63,9 @@ tcpip_handler(void)
   if(uip_newdata()) {
     appdata = (char *)uip_appdata;
     appdata[uip_datalen()] = 0;
-    PRINTF("DATA recv '%s' from ", appdata);
-    PRINTF("%d",
-           UIP_IP_BUF->srcipaddr.u8[sizeof(UIP_IP_BUF->srcipaddr.u8) - 1]);
-    PRINTF("\n");
+	PRINTF("sm: %d %s\n",
+		   UIP_IP_BUF->srcipaddr.u8[sizeof(UIP_IP_BUF->srcipaddr.u8) - 1],
+			appdata);
 #if SERVER_REPLY
     PRINTF("DATA sending reply\n");
     uip_ipaddr_copy(&server_conn->ripaddr, &UIP_IP_BUF->srcipaddr);
@@ -149,6 +148,18 @@ PROCESS_THREAD(udp_server_process, ev, data)
   /* The data sink runs with a 100% duty cycle in order to ensure high 
      packet reception rates. */
   NETSTACK_MAC.off(1);
+
+#if CONTIKI_TARGET_ECONOTAG
+	  /* turn on red led when TX packet */
+	  GPIO->FUNC_SEL.GPIO_44 = 1;
+	  GPIO->PAD_DIR_SET.GPIO_44 = 0;
+	  GPIO->DATA_SET.GPIO_44 = 1;
+
+	  /* turn the green led on */
+	  GPIO->FUNC_SEL.GPIO_45 = 1; /* 1: led ON, 0: led OFF */
+	  GPIO->PAD_DIR_SET.GPIO_45 = 0;
+	  GPIO->DATA_SET.GPIO_45 = 1;
+#endif
 
   server_conn = udp_new(NULL, UIP_HTONS(UDP_CLIENT_PORT), NULL);
   if(server_conn == NULL) {
