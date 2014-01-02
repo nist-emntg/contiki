@@ -64,16 +64,16 @@ typedef enum {
 } akm_op_t;
 
 /* MARTA related constants */
-#define BEACON_TIMER_INTERVAL     			5
-#define BEACON_TIMER_AUTH_INTERVAL          10
-#define BEACON_TIMER_IDLE_INTERVAL          60
+#define BEACON_TIMER_INTERVAL     			10
+#define BEACON_TIMER_AUTH_INTERVAL          30
+#define BEACON_TIMER_IDLE_INTERVAL          120
 #define TEMP_LINK_TIMER                     45
 #define PENDING_AUTH_TIMEOUT         		45
 #define SPACE_AVAILABLE_TIMER               5
-#define REDUNDANT_PARENT_AVAILABLE_TIMER    10
-#define NO_SPACE_TIMER                      15
-#define CHALLENGE_SENT_TIMEOUT              5
-#define WAITING_FOR_ACK_TIMEOUT             5
+#define REDUNDANT_PARENT_AVAILABLE_TIMER    15
+#define NO_SPACE_TIMER                      20
+#define CHALLENGE_SENT_TIMEOUT             10
+#define WAITING_FOR_ACK_TIMEOUT            10
 #define CYCLE_DETECT_INTERVAL 				30
 
 typedef  rimeaddr_t nodeid_t;
