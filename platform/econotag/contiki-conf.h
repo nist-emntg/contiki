@@ -142,11 +142,11 @@
 #define XMAC_CONF_COMPOWER               0
 #define CXMAC_CONF_COMPOWER              0
 
-#define COLLECT_NBR_TABLE_CONF_MAX_NEIGHBORS      32
+#define COLLECT_NBR_TABLE_CONF_MAX_NEIGHBORS      8
 
 #endif /* WITH_UIP6 */
 
-#define QUEUEBUF_CONF_NUM          16
+#define QUEUEBUF_CONF_NUM          8
 
 #define PACKETBUF_CONF_ATTRS_INLINE 1
 
@@ -184,8 +184,8 @@
 #define UIP_CONF_IPV6_RPL               1
 #endif
 
-#define NBR_TABLE_CONF_MAX_NEIGHBORS     30
-#define UIP_CONF_MAX_ROUTES   30
+#define NBR_TABLE_CONF_MAX_NEIGHBORS     8
+#define UIP_CONF_MAX_ROUTES   15
 
 #define UIP_CONF_ND6_SEND_RA		0
 #define UIP_CONF_ND6_REACHABLE_TIME     600000
@@ -223,7 +223,7 @@
 #define UIP_CONF_DHCP_LIGHT
 #define UIP_CONF_LLH_LEN         0
 #define UIP_CONF_RECEIVE_WINDOW  48
-#define UIP_CONF_TCP_MSS         48
+#define UIP_CONF_TCP_MSS         0
 #define UIP_CONF_MAX_CONNECTIONS 4
 #define UIP_CONF_MAX_LISTENPORTS 8
 #define UIP_CONF_UDP_CONNS       12
