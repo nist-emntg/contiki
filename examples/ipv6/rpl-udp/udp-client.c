@@ -50,7 +50,7 @@
 #include "net/uip-debug.h"
 
 #ifndef PERIOD
-#define PERIOD 60
+#define PERIOD 30
 #endif
 
 #define START_INTERVAL		(15 * CLOCK_SECOND)
@@ -96,9 +96,10 @@ send_alert()
 {
   char buf[MAX_PAYLOAD_LEN];
 
-  PRINTF("DATA alert send to %d 'ALERT'\n",
-		 server_ipaddr.u8[sizeof(server_ipaddr.u8) - 1]);
-  sprintf(buf, "ALERT");
+  sprintf(buf, "ALERT power_outage");
+  PRINTF("DATA alert send to %d '%s'\n",
+		 server_ipaddr.u8[sizeof(server_ipaddr.u8) - 1],
+		 buf);
   uip_udp_packet_sendto(client_conn, buf, strlen(buf),
 						&server_ipaddr, UIP_HTONS(UDP_SERVER_PORT));
 }
