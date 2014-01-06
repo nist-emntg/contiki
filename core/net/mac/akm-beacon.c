@@ -39,22 +39,13 @@ void handle_beacon(beacon_t *pbeacon) {
 				|| AKM_DATA.authenticated_neighbors[i].state
 						== UNAUTHENTICATED) {
 			send_challenge(senderId, pbeacon);
-		} else if (i != -1 ) {
-			AKM_DATA.authenticated_neighbors[i].time_since_last_ping = 0;
 		}
 	} else {
 		AKM_PRINTF(
 				"is_authenticated sender = %d is_part_of_dodag = %d sender auth state is %s\n",
 				pbeacon->is_authenticated, is_part_of_dodag(),
 				get_auth_state_as_string(get_authentication_state(senderId)));
-		int i = find_authenticated_neighbor(senderId);
-		if (-1 != i) {
-				AKM_PRINTF("Saw a ping from ");
-				AKM_PRINTADDR(senderId);
-				AKM_PRINTF("Resetting time_since_last_ping %d \n",
-						AKM_DATA.authenticated_neighbors[i].time_since_last_ping );
-				AKM_DATA.authenticated_neighbors[i].time_since_last_ping = 0;
-		}
+
 		if (get_authentication_state(senderId) == AUTH_PENDING) {
 			/* Already authenticated him so just resend the ack */
 			nodeid_t* pparent = get_parent_id();

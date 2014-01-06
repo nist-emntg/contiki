@@ -393,12 +393,12 @@ int find_authenticated_neighbor(nodeid_t* nodeid) {
 /*----------------------------------------------------------------*/
 void update_liveness() {
 	nodeid_t* senderId = &AKM_DATA.sender_id;
-	AKM_PRINTF("handle_beacon : "); AKM_PRINTADDR(senderId);
+	AKM_PRINTF("update_liveness : "); AKM_PRINTADDR(senderId);
 	int i = find_authenticated_neighbor(senderId);
 	if (-1 != i) {
-		AKM_PRINTF("Saw a ping from ");
+		AKM_PRINTF("update_liveness: Saw a ping from ");
 		AKM_PRINTADDR(senderId);
-		AKM_PRINTF("Resetting time_since_last_ping %d \n",
+		AKM_PRINTF("update_liveness: Resetting time_since_last_ping %d \n",
 				AKM_DATA.authenticated_neighbors[i].time_since_last_ping );
 		AKM_DATA.authenticated_neighbors[i].time_since_last_ping = 0;
 	}
