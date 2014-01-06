@@ -13,6 +13,9 @@ void init_crypto(void) {
 		s_pub_certificate tmp2;
 
 		PRINTF("initializing crypto\n");
+#if BENCH
+		printf("bench: initializing crypto\n");
+#endif
 		ecc_init();
 
 		deserialize_cert(raw_cert, &tmp);

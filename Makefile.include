@@ -84,6 +84,7 @@ CONTIKIDIRS += ${addprefix $(CONTIKI)/core/,dev lib net net/mac net/rime \
 ifdef CERTIFICATE
 include $(CONTIKI)/core/lib/certificate/Makefile.curve
 CURVE_DIR=ecc/curve-params
+include $(CONTIKI)/core/lib/certificate/$(CURVE_DIR)/Makefile.curve_params
 CONTIKIDIRS += ${addprefix $(CONTIKI)/core/lib/certificate/,certificate $(CURVE_DIR) ecc sha2 . }
 LIBS += ecc.c ecdsa.c nn.c sha2.c certificate.c
 CFLAGS+= -DUIP_CONF_IPV6_RPL \
@@ -92,7 +93,6 @@ CFLAGS+= -DUIP_CONF_IPV6_RPL \
                  -D$(DOMAIN_PARAMS) \
                  -DTHIRTYTWO_BIT_PROCESSOR \
                  -DDOMAIN_PARAMS=$(DOMAIN_PARAMS)
-include $(CONTIKI)/core/lib/certificate/$(CURVE_DIR)/Makefile.curve_params
 
 endif
 

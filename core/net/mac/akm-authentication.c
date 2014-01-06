@@ -219,7 +219,9 @@ void do_send_challenge(void* pvoid) {
 
 	nodeid_t* target = (nodeid_t*) &pdata->sender_id;
 	bool_t is_authenticated = pdata->is_sender_authenticated;
-
+#if BENCH
+	printf("bench: do_send_challenge\n");
+#endif
 	AKM_PRINTF("do_send_challenge: target = ");
 	AKM_PRINTADDR(target);
 
@@ -424,6 +426,15 @@ void handle_auth_ack(auth_ack_t* pauthAck) {
 	if (is_nodeid_zero(pparent)) {
 		if (get_authentication_state(sender) == OK_SENT_WAITING_FOR_ACK) {
 			add_authenticated_neighbor(sender, AUTHENTICATED);
+#if BENCH
+			printf("bench: received ACK, authenticated\n");
+#endif
+#if CONTIKI_TARGET_ECONOTAG
+		  /* turn the green led on */
+		  GPIO->FUNC_SEL.GPIO_45 = 1; /* 1: led ON, 0: led OFF */
+		  GPIO->PAD_DIR_SET.GPIO_45 = 0;
+		  GPIO->DATA_SET.GPIO_45 = 1;
+#endif
 		}
 	} else {
 		bool_t foundInParentCache = False;
@@ -478,6 +489,15 @@ void send_auth_ack(nodeid_t* target_id, nodeid_t * pparent) {
 	AKM_PRINTADDR(target_id);
 	AKM_PRINTF("parent_id = ");
 	AKM_PRINTADDR(pparent);
+#if BENCH
+	printf("bench: ACK sent, node authenticated\n");
+#endif
+#if CONTIKI_TARGET_ECONOTAG
+	/* turn the green led on */
+	GPIO->FUNC_SEL.GPIO_45 = 1; /* 1: led ON, 0: led OFF */
+	GPIO->PAD_DIR_SET.GPIO_45 = 0;
+	GPIO->DATA_SET.GPIO_45 = 1;
+#endif
 	if (AKM_DATA.is_dodag_root) {
 		memset(&AKM_MAC_OUTPUT.data.auth_ack.parent_id, 0, sizeof(nodeid_t));
 		akm_send(target_id, AUTH_ACK, sizeof(AKM_MAC_OUTPUT.data.auth_ack));
