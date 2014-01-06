@@ -326,7 +326,6 @@ typedef struct akm_data
 
 	akm_timer_t cycle_detect_timer;
 
-	bool_t is_handling_challenge;
 
 	struct ctimer master_timer;
 

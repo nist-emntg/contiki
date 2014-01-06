@@ -41,6 +41,19 @@ akm_mac_t AKM_MAC_INPUT;
 
 extern rimeaddr_t rimeaddr_node_addr;
 
+bool_t is_handling_challenge() {
+	int i;
+	for (i = 0; i < NELEMS(AKM_DATA.authenticated_neighbors); i++) {
+		if (AKM_DATA.authenticated_neighbors[i].state
+				!= UNAUTHENTICATED
+				&& AKM_DATA.authenticated_neighbors[i].state
+				!= AUTHENTICATED) {
+			return True;
+		}
+
+	}
+	return False;
+}
 
 /*--------------------------------------------------------------------------*/
 void internal_error(char* error_message) {
@@ -63,7 +76,8 @@ nodeid_t * get_parent_id() {
 		return NULL;
 	}
 
-	 return (nodeid_t *) rpl_get_parent_lladdr(get_dodag_root(),get_dodag_root()->preferred_parent);
+	return (nodeid_t *) rpl_get_parent_lladdr(get_dodag_root(),
+			get_dodag_root()->preferred_parent);
 }
 /*--------------------------------------------------------------------------*/
 bool_t is_nodeid_zero(nodeid_t* pnodeId) {
@@ -84,8 +98,7 @@ bool_t is_capacity_available(nodeid_t* pnode) {
 						== PENDING_SEND_CHALLENGE) {
 			AKM_PRINTF(
 					"Already assigned a state %s to the slot. Capacity count is %d  returning True\n",
-					get_auth_state_as_string(
-							AKM_DATA.authenticated_neighbors[i].state),
+					get_auth_state_as_string( AKM_DATA.authenticated_neighbors[i].state),
 					capacityCount);
 			AKM_PRINTF("temporaryLink = ");
 			AKM_PRINTADDR(&AKM_DATA.temporaryLink);
@@ -191,7 +204,7 @@ static void check_and_restart(void *ptr) {
 	int i;
 	fire_timer(&AKM_DATA.beacon_timer);
 
-	if ( is_authenticated() && IS_CYCLE_DETECTION_ENABLED ) {
+	if (is_authenticated() && IS_CYCLE_DETECTION_ENABLED) {
 		fire_timer(&AKM_DATA.cycle_detect_timer);
 	}
 
@@ -206,12 +219,14 @@ static void check_and_restart(void *ptr) {
 		if (AKM_DATA.authenticated_neighbors[i].state == AUTHENTICATED) {
 			AKM_DATA.authenticated_neighbors[i].time_since_last_ping++;
 			if (AKM_DATA.authenticated_neighbors[i].time_since_last_ping
-					>  2*BEACON_TIMER_IDLE_INTERVAL) {
-				AKM_PRINTF("FAILED node detected- removing him from the list : ");
+					> 2 * BEACON_TIMER_IDLE_INTERVAL) {
+				AKM_PRINTF(
+						"FAILED node detected- removing him from the list : ");
 				AKM_PRINTADDR(&AKM_DATA.authenticated_neighbors[i].node_id);
 				AKM_DATA.authenticated_neighbors[i].time_since_last_ping = 0;
-				set_authentication_state
-				(&AKM_DATA.authenticated_neighbors[i].node_id,UNAUTHENTICATED);
+				set_authentication_state(
+						&AKM_DATA.authenticated_neighbors[i].node_id,
+						UNAUTHENTICATED);
 			}
 		}
 	}
@@ -225,7 +240,7 @@ static void check_and_restart(void *ptr) {
 }
 /*--------------------------------------------------------------------------*/
 int add_authenticated_neighbor(nodeid_t* pnodeId,
-							   authentication_state authState) {
+		authentication_state authState) {
 
 	AKM_PRINTF("add_authenticated_neighbor : authState =  %s ",
 			get_auth_state_as_string(authState));
@@ -233,7 +248,8 @@ int add_authenticated_neighbor(nodeid_t* pnodeId,
 	int i = 0;
 	for (i = 0; i < NELEMS(AKM_DATA.authenticated_neighbors); i++) {
 		if (AKM_DATA.authenticated_neighbors[i].state == UNAUTHENTICATED) {
-			rimeaddr_copy(&AKM_DATA.authenticated_neighbors[i].node_id, pnodeId);
+			rimeaddr_copy(&AKM_DATA.authenticated_neighbors[i].node_id,
+					pnodeId);
 			set_authentication_state(pnodeId, authState);
 			break;
 		}
@@ -384,7 +400,8 @@ bool_t is_authenticated() {
 }
 
 bool_t is_part_of_dodag() {
-	return get_dodag_root() != NULL &&  get_dodag_root()->preferred_parent != NULL;
+	return get_dodag_root() != NULL
+			&& get_dodag_root()->preferred_parent != NULL;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -419,19 +436,15 @@ void akm_route_message() {
 
 	switch (op) {
 	case BEACON:
-		if ( !AKM_DATA.is_handling_challenge) {
+		if (!is_handling_challenge()) {
 			handle_beacon(&pakm_mac->data.beacon);
 		}
 		break;
 	case AUTH_CHALLENGE:
-		AKM_DATA.is_handling_challenge = True;
 		handle_auth_challenge(&pakm_mac->data.auth_challenge);
-		AKM_DATA.is_handling_challenge = False;
 		break;
 	case AUTH_CHALLENGE_RESPONSE:
-		AKM_DATA.is_handling_challenge = True;
 		handle_auth_challenge_response(&pakm_mac->data.auth_challenge_response);
-		AKM_DATA.is_handling_challenge = False;
 		break;
 	case AUTH_ACK:
 		handle_auth_ack(&pakm_mac->data.auth_ack);
@@ -440,7 +453,6 @@ void akm_route_message() {
 	case BREAK_SECURITY_ASSOCIATION_REQUEST:
 		handle_break_security_association(&pakm_mac->data.bsa_request);
 		break;
-
 
 	case CONFIRM_TEMPORARY_LINK_REQUEST:
 		handle_confirm_temporary_link(
@@ -452,14 +464,13 @@ void akm_route_message() {
 		break;
 
 #if IS_CYCLE_DETECTION_ENABLED==1
-	case CYCLE_DETECT:
+		case CYCLE_DETECT:
 		handle_cycle_detect(&pakm_mac->data.cycle_detect);
 		break;
 #endif
 
 	default:
-		PRINT_ERROR("akm_route_message:Not implemented\n")
-		;
+		PRINT_ERROR("akm_route_message:Not implemented\n");
 		AKM_ABORT();
 	}
 
@@ -486,10 +497,12 @@ static void init(void) {
 	set_sighandler(akm_sighandler);
 #endif
 
-	if ( is_authenticated()) {
-		log_msg_one_node(AKM_LOG_NODE_AUTH_STATE,"AUTHENTICATED",strlen("AUTHENTICATED"));
+	if (is_authenticated()) {
+		log_msg_one_node(AKM_LOG_NODE_AUTH_STATE, "AUTHENTICATED",
+				strlen("AUTHENTICATED"));
 	} else {
-		log_msg_one_node(AKM_LOG_NODE_AUTH_STATE,"UNAUTHENTICATED",strlen("UNAUTHENTICATED"));
+		log_msg_one_node(AKM_LOG_NODE_AUTH_STATE, "UNAUTHENTICATED",
+				strlen("UNAUTHENTICATED"));
 	}
 
 }
@@ -497,19 +510,19 @@ static void init(void) {
 #ifdef AKM_DEBUG
 char* get_auth_state_as_string(authentication_state auth_state) {
 	switch (auth_state) {
-	case UNAUTHENTICATED:
+		case UNAUTHENTICATED:
 		return "UNAUTHENTICATED";
-	case PENDING_SEND_CHALLENGE:
+		case PENDING_SEND_CHALLENGE:
 		return "PENDING_SEND_CHALLENGE";
-	case CHALLENGE_SENT_WAITING_FOR_OK:
+		case CHALLENGE_SENT_WAITING_FOR_OK:
 		return "CHALLENGE_SENT_WAITING_FOR_OK";
-	case OK_SENT_WAITING_FOR_ACK:
+		case OK_SENT_WAITING_FOR_ACK:
 		return "OK_SENT_WAITING_FOR_ACK";
-	case AUTH_PENDING:
+		case AUTH_PENDING:
 		return "AUTH_PENDING";
-	case AUTHENTICATED:
+		case AUTHENTICATED:
 		return "AUTHENTICATED";
-	default:
+		default:
 		return "UNDEFINED";
 	}
 }
@@ -520,17 +533,19 @@ void remove_parent(nodeid_t* parent_nodeid) {
 	AKM_PRINTF("remove_parent: ");
 	AKM_PRINTADDR(parent_nodeid);
 	// uip_ds6_nbr_t *nbr = uip_ds6_nbr_ll_lookup((uip_lladdr_t*) parent_nodeid);
-	uip_ipaddr_t* ipAddr = uip_ds6_nbr_ipaddr_from_lladdr((uip_lladdr_t*)parent_nodeid);
+	uip_ipaddr_t* ipAddr = uip_ds6_nbr_ipaddr_from_lladdr(
+			(uip_lladdr_t*) parent_nodeid);
 	if (ipAddr != NULL) {
 		rpl_parent_t* parent = rpl_find_parent(get_dodag_root(), ipAddr);
 		if (parent != NULL) {
-			AKM_PRINTF("Found parent rank = %d \n",parent->rank);
+			AKM_PRINTF("Found parent rank = %d \n", parent->rank);
 			rpl_remove_parent(parent);
 		} else {
 			AKM_PRINTF("Could not find parent.\n");
 		}
 
-		log_msg_one_node(AKM_LOG_REMOVE_REDUNDANT_PARENT,"REMOVE_REDUNDANT_PARENT",strlen("REMOVE_REDUNDANT_PARENT"));
+		log_msg_one_node(AKM_LOG_REMOVE_REDUNDANT_PARENT,
+				"REMOVE_REDUNDANT_PARENT", strlen("REMOVE_REDUNDANT_PARENT"));
 
 	} else {
 		AKM_PRINTF("Could not find neighbor in cache.\n");
@@ -550,8 +565,6 @@ rpl_dag_t * get_dodag_root() {
 	return rpl_get_any_dag();
 }
 
-
-
 /*---------------------------------------------------------------------------*/
 static void send_packet(mac_callback_t sent, void *ptr) {
 	NETSTACK_RDC.send(sent, ptr);
@@ -561,14 +574,14 @@ void akm_packet_input(void) {
 
 	akm_mac_t* pakm_mac = packetbuf_dataptr();
 
-	AKM_PRINTF("akm_mac::datalen = %d sizeof buffer = %d  protocol_id = %#lx \n",
+	AKM_PRINTF(
+			"akm_mac::datalen = %d sizeof buffer = %d  protocol_id = %#lx \n",
 			packetbuf_datalen(), sizeof(AKM_MAC_INPUT),
 			pakm_mac->mac_header.protocol_id);
 	if (pakm_mac->mac_header.protocol_id == AKM_DISPATCH_BYTE) {
 		if (pakm_mac->mac_header.ftype == UNFRAGMENTED) {
 			if (packetbuf_datalen() > sizeof(AKM_MAC_INPUT)) {
-				AKM_PRINTF("ERROR! size in packetbuf is too big.\n")
-				;
+				AKM_PRINTF("ERROR! size in packetbuf is too big.\n");
 			} else {
 				memcpy(&AKM_MAC_INPUT, pakm_mac, packetbuf_datalen());
 				akm_route_message();
@@ -648,7 +661,7 @@ void log_parents() {
 			uint16_t* p = (uint16_t*) malloc( sizeof(uint16_t) * (count + 1));
 			rpl_get_parents(dodagRoot ,rpl_parents);
 			int i = 0;
-			for ( i = 0 ; i < count; i++ ) {
+			for ( i = 0; i < count; i++ ) {
 				p[i] = get_node_id_as_int(rpl_get_parent_lladdr(dodagRoot,rpl_parents[i]));
 				AKM_PRINTADDR(rpl_get_parent_lladdr(dodagRoot,rpl_parents[i]));
 				AKM_PRINTF("Parent ID = %d\n",p[i]);
@@ -667,8 +680,6 @@ void log_parents() {
 
 /*---------------------------------------------------------------------------*/
 #if defined(AKM_DEBUG) && defined(CONTIKI_TARGET_NATIVE)
-
-
 
 static void akm_sighandler(int signo) {
 	int i;
