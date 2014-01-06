@@ -199,7 +199,7 @@
 #define UIP_CONF_ND6_MAX_PREFIXES       3
 #define UIP_CONF_ND6_MAX_DEFROUTERS     2
 #define UIP_CONF_IP_FORWARD             0
-#define UIP_CONF_BUFFER_SIZE		1300
+#define UIP_CONF_BUFFER_SIZE		1100
 #define SICSLOWPAN_CONF_FRAG            1
 #define SICSLOWPAN_CONF_MAXAGE          8
 
