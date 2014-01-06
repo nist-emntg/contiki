@@ -390,6 +390,20 @@ int find_authenticated_neighbor(nodeid_t* nodeid) {
 	return -1;
 }
 
+/*----------------------------------------------------------------*/
+void update_liveness() {
+	nodeid_t* senderId = &AKM_DATA.sender_id;
+	AKM_PRINTF("handle_beacon : "); AKM_PRINTADDR(senderId);
+	int i = find_authenticated_neighbor(senderId);
+	if (-1 != i) {
+		AKM_PRINTF("Saw a ping from ");
+		AKM_PRINTADDR(senderId);
+		AKM_PRINTF("Resetting time_since_last_ping %d \n",
+				AKM_DATA.authenticated_neighbors[i].time_since_last_ping );
+		AKM_DATA.authenticated_neighbors[i].time_since_last_ping = 0;
+	}
+}
+
 /*-----------------------------------------------------------------------*/
 bool_t is_authenticated() {
 	if (AKM_DATA.is_dodag_root) {
@@ -433,7 +447,7 @@ void akm_route_message() {
 		AKM_PRINTF("akm_route_message: Message originated by me -- dropping\n");
 		return;
 	}
-
+	update_liveness();
 	switch (op) {
 	case BEACON:
 		if (!is_handling_challenge()) {
