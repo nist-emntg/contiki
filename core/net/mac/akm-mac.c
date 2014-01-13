@@ -290,7 +290,6 @@ void akm_send(nodeid_t *targetId, akm_op_t command, int size) {
 		packetbuf_set_addr(PACKETBUF_ADDR_SENDER, get_node_id());
 		NETSTACK_CONF_FRAMER.create();
 		sizeToSend = packetbuf_totlen();
-		NETSTACK_RADIO.prepare(packetbuf_hdrptr(), sizeToSend);
 		NETSTACK_RADIO.send(packetbuf_hdrptr(), sizeToSend);
 	} else {
 		/* Message needs to be fragmented */
@@ -298,23 +297,22 @@ void akm_send(nodeid_t *targetId, akm_op_t command, int size) {
 		int startbuf = 0;
 		int chunksize = MAX_TRANSMIT_SIZE - sizeof(AKM_MAC_OUTPUT.mac_header);
 
-		packetbuf_set_addr(PACKETBUF_ADDR_RECEIVER, targetId);
-		packetbuf_set_addr(PACKETBUF_ADDR_SENDER, get_node_id());
 		int bytes_to_copy = frag_size - sizeof(AKM_MAC_OUTPUT.mac_header);
-		uint8_t fid = AKM_DATA.output_fragid;
-		AKM_DATA.output_fragid = (AKM_DATA.output_fragid++ % 256);
+		uint8_t fid = AKM_DATA.output_fragid++;
 		AKM_MAC_OUTPUT.mac_header.protocol_id = AKM_DISPATCH_BYTE;
 		AKM_MAC_OUTPUT.mac_header.ftype = FRAG1;
 		AKM_MAC_OUTPUT.mac_header.frag.frag1.id = fid;
 		AKM_MAC_OUTPUT.mac_header.frag.frag1.fraglength = chunksize;
 		AKM_MAC_OUTPUT.mac_header.frag.frag1.total_data_length = size;
-		/* Send out a burst of packets. Do we want to wait between sends?*/AKM_PRINTF(
+		/* Send out a burst of packets. Do we want to wait between sends?*/
+		AKM_PRINTF(
 				"FRAG1 header fragid = %d fraglength = %d total_data_length = %d\n",
 				fid, chunksize, size);
 		packetbuf_copyfrom((char*) &AKM_MAC_OUTPUT, MAX_TRANSMIT_SIZE);
+		packetbuf_set_addr(PACKETBUF_ADDR_RECEIVER, targetId);
+		packetbuf_set_addr(PACKETBUF_ADDR_SENDER, get_node_id());
 		NETSTACK_CONF_FRAMER.create();
 		sizeToSend = packetbuf_totlen();
-		NETSTACK_RADIO.prepare(packetbuf_hdrptr(), sizeToSend);
 		NETSTACK_RADIO.send(packetbuf_hdrptr(), sizeToSend);
 		bytes_to_copy -= chunksize;
 		startbuf += chunksize;
@@ -350,7 +348,6 @@ void akm_send(nodeid_t *targetId, akm_op_t command, int size) {
 			packetbuf_set_addr(PACKETBUF_ADDR_SENDER, get_node_id());
 			NETSTACK_CONF_FRAMER.create();
 			sizeToSend = packetbuf_totlen();
-			NETSTACK_RADIO.prepare(packetbuf_hdrptr(), sizeToSend);
 			NETSTACK_RADIO.send(packetbuf_hdrptr(), sizeToSend);
 			packetbuf_clear();
 
