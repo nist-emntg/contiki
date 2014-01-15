@@ -110,12 +110,14 @@ typedef enum {
 typedef struct akm_frag1 {
 	uint8_t  id;        /* sequentially increasing fragid ID */
 	uint8_t  fraglength;
+	uint16_t canary;
 	uint16_t total_data_length;
 } akm_frag1_t;
 
 typedef struct akm_fragn {
 	uint8_t id;
 	uint8_t fraglength;
+	uint16_t canary;
 	uint16_t offset;
 } akm_fragn_t;
 

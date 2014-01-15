@@ -311,6 +311,7 @@ void akm_send(nodeid_t *targetId, akm_op_t command, int size) {
 		AKM_MAC_OUTPUT.mac_header.frag.frag1.id = fid;
 		AKM_MAC_OUTPUT.mac_header.frag.frag1.fraglength = chunksize;
 		AKM_MAC_OUTPUT.mac_header.frag.frag1.total_data_length = size;
+		AKM_MAC_OUTPUT.mac_header.frag.frag1.canary = 0;
 		/* Send out a burst of packets. Do we want to wait between sends?*/
 		AKM_PRINTF(
 				"FRAG1 header fragid = %d fraglength = %d total_data_length = %d\n",
@@ -339,6 +340,7 @@ void akm_send(nodeid_t *targetId, akm_op_t command, int size) {
 			AKM_MAC_OUTPUT.mac_header.frag.fragn.id = fid;
 			AKM_MAC_OUTPUT.mac_header.frag.fragn.offset = startbuf;
 			AKM_MAC_OUTPUT.mac_header.frag.fragn.fraglength = chunksize;
+			AKM_MAC_OUTPUT.mac_header.frag.fragn.canary = 0;
 			void* dataptr = packetbuf_dataptr();
 			packetbuf_set_datalen(
 					chunksize + sizeof(AKM_MAC_OUTPUT.mac_header));
