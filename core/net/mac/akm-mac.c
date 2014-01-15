@@ -291,8 +291,15 @@ void akm_send(nodeid_t *targetId, akm_op_t command, int size) {
 		NETSTACK_CONF_FRAMER.create();
 		sizeToSend = packetbuf_totlen();
 		NETSTACK_RADIO.send(packetbuf_hdrptr(), sizeToSend);
+		packetbuf_clear();
 	} else {
 		/* Message needs to be fragmented */
+		int i;
+		for(i=0; i<frag_size; i++) {
+			printf("%2.x", ((uint8_t * ) &AKM_MAC_OUTPUT)[i]);
+		}
+		printf("\n");
+
 		AKM_PRINTF("Fragmentation header\n");
 		int startbuf = 0;
 		int chunksize = MAX_TRANSMIT_SIZE - sizeof(AKM_MAC_OUTPUT.mac_header);

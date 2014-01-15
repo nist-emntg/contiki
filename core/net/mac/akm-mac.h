@@ -356,7 +356,6 @@ void handle_auth_challenge_response(auth_challenge_response_t *pauthChallengeRes
 void handle_break_security_association(break_security_association_request_t* pbsa);
 void handle_confirm_temporary_link(confirm_temporary_link_request_t* ctl);
 bool_t is_capacity_available(nodeid_t* target) ;
-bool_t is_authenticated();
 void akm_send(nodeid_t *targetId, akm_op_t command, int size);
 bool_t is_nodeid_zero(nodeid_t* pnodeId);
 bool_t is_redundant_parent_available();
@@ -374,7 +373,6 @@ rpl_dag_t * get_dodag_root();
 void send_auth_ack(nodeid_t* target_id,nodeid_t * pparent);
 void free_slot(int slot);
 
-bool_t is_authenticated();
 nodeid_t* grab_dodag_parent();
 
 nodeid_t * get_parent_id();
