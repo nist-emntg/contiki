@@ -122,9 +122,9 @@ typedef struct akm_fragn {
 } akm_fragn_t;
 
 typedef struct akm_mac_header {
-	uint8_t 	protocol_id;
-	akm_op_t	command;
-	frag_type   ftype;
+	uint8_t protocol_id;
+	uint8_t	command;
+	uint8_t ftype;
 	union{
 		akm_frag1_t frag1;
 		akm_fragn_t fragn;
@@ -136,8 +136,8 @@ typedef struct akm_mac_header {
 
 
 typedef struct beacon_header {
-	bool_t is_authenticated;
-	bool_t is_capacity_available;
+	uint8_t is_authenticated;
+	uint8_t is_capacity_available;
 } beacon_t;
 
 
@@ -159,12 +159,12 @@ typedef struct cycle_detect {
 #define AUTH_MSG_LEN        (PUB_CERT_SIZE + 2*NUMBYTES + SIG_LEN)
 
 typedef struct  {
-	auth_challenge_sc status_code; /* Indicates space availability of sender */
+	uint8_t status_code; /* Indicates space availability of sender */
 	uint8_t crypto_payload[AUTH_MSG_LEN];
 } auth_challenge_request_t;
 
 typedef struct auth_challenge_response {
-	auth_challenge_sc request_status_code;
+	uint8_t request_status_code;
 	uint8_t crypto_payload[AUTH_MSG_LEN];
 } auth_challenge_response_t;
 
@@ -223,7 +223,7 @@ typedef enum {
 
 
 typedef struct {
-	bsa_continuation continuation;
+	uint8_t continuation;
 	nodeid_t insert_node_requester;
 } break_security_association_request_t;
 
