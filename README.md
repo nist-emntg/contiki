@@ -17,3 +17,27 @@ and so on.
 For more information, see the Contiki website:
 
 [http://contiki-os.org](http://contiki-os.org)
+
+AKM extensions for Contiki
+==========================
+
+This repository contains a modified version of Contiki that implements the
+Adaptive Key Management (AKM) protocol. AKM is a security protocol built upon
+the principle that nodes have a bounded amount of memory to perform security
+related function. Consequently, they should try to make the best use of their
+resources in order to connect to as many nodes as possible and form the largest
+secure overlay network possible (i.e. have the best node coverage).
+
+AKM monitors RPL messages in order to build a set of neighbors that are crucial
+for connecting the node to network. This categorisation enables nodes to
+remove security association with their peers when they are of lesser value than
+other, more interesting, neighbors.
+
+A new MAC layer is introduced for AKM protocol and works as a pass through for
+non-AKM related message.  This MAC layer implements low level message filtering,
+fragmentation and reassembly required for AKM messages.
+
+Mutual authentication is performed using lightweight ECC certificates (shipped
+as a git submodule).
+
+This research was funded by NIST as part of the Secure Smart Grid project.
